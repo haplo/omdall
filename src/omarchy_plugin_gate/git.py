@@ -81,6 +81,26 @@ def parse_numstat_z(data: bytes) -> dict[str, bool]:
     return out
 
 
+def parse_status_z(data: bytes) -> list[tuple[str, str]]:
+    """`git status --porcelain=v1 -z` → (two-letter status, path). A rename or
+    copy is reported once, under its new path."""
+    out: list[tuple[str, str]] = []
+    tokens = data.split(b"\0")
+    i = 0
+    while i < len(tokens):
+        record = tokens[i]
+        i += 1
+        if not record:
+            continue
+        if len(record) < 4 or record[2:3] != b" ":
+            raise ValueError(f"unexpected status record: {record[:80]!r}")
+        code = record[:2].decode("ascii")
+        if "R" in code or "C" in code:
+            i += 1
+        out.append((code, os.fsdecode(record[3:])))
+    return out
+
+
 class Repo:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -146,6 +166,26 @@ class Repo:
 
     def is_clean(self) -> bool:
         return self.ok("diff-index", "--quiet", "HEAD", "--")
+
+    def _status(self, *extra: str) -> list[tuple[str, str]]:
+        out = self.git(
+            "--no-optional-locks",
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            *extra,
+            no_attributes=True,
+        ).stdout
+        return parse_status_z(out)
+
+    def dirty_paths(self) -> list[str]:
+        """Files that differ from HEAD: modified, staged, deleted or untracked,
+        but not ignored."""
+        return [path for _code, path in self._status()]
+
+    def ignored_paths(self) -> list[str]:
+        return [path for code, path in self._status("--ignored") if code == "!!"]
 
     def update_ref(self, ref: str, sha: str) -> None:
         self.git("update-ref", ref, sha)

@@ -38,14 +38,17 @@ usage: omarchy-plugin-gate [options] <command> [command options] [options]
   update [-p NAME]
       Apply approved commits to ~/.config/omarchy/plugins/<id> and rescan.
       With -p, a plugin that is approved but not installed yet (say, approved
-      by hand after add held it back) is installed and enabled.
+      by hand after add held it back) is installed and enabled. An installed
+      copy with modified or untracked files is not updated.
 
   status [-p NAME]
-      What is installed, approved, upstream, and held.
+      What is installed, approved, upstream, and held, plus local changes in
+      the installed copy and an installed commit that was never reviewed.
 
   doctor [-p NAME] [--fix]
-      Verify the wiring (hooks, origin, refs, reviewer model). --fix installs
-      missing hooks.
+      Verify the wiring (hooks, origin, refs, reviewer model) and that the
+      installed copy is a reviewed commit with no local changes. --fix
+      installs missing hooks.
 
 Options, before or after the command. Each overrides its environment variable:
   --root DIR         OMARCHY_PLUGIN_GATE_ROOT       gate root

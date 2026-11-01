@@ -4,6 +4,21 @@ All notable changes to omarchy-plugin-gate. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Security
+
+- Files changed in the installed copy were never noticed. `update` and
+  `status` compared only the installed commit, so an edited or untracked file
+  in `~/.config/omarchy/plugins/<id>` survived every fast-forward without
+  review, and a plugin adopted at a commit the gate never reviewed looked
+  installed and approved. `update` now refuses an installed copy with
+  modified, staged or untracked files and names them; files matched by
+  ignore rules do not stop it. `status` shows local changes as `modified` and
+  says `installed commit never reviewed` when the installed commit has neither
+  a review nor a waiver; `doctor` reports both as problems and lists ignored
+  files for information.
+
 ## [0.5.0] - 2026-10-31
 
 ### Security

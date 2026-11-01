@@ -107,6 +107,14 @@ it, and advances `gate-approved` only on `REVIEW PASS` or a recorded one-time
 waiver. `update` then fast-forwards the installed copy to that ref, validates
 the manifest, and asks the shell to rescan.
 
+A fast-forward keeps edited and untracked files, and nobody reviewed those, so
+`update` refuses an installed copy with modified, staged or untracked files and
+names them; commit, remove or `git checkout` them first. Files your git ignore
+rules match (a plugin's cache, say) do not stop an update. `status` shows
+local changes as `modified` and says when the installed commit was never
+reviewed (an adopted plugin, or a commit made in the installed copy); `doctor`
+reports both as problems and lists ignored files for information.
+
 Every candidate keeps its evidence under
 `~/.local/state/omarchy-plugin-gate/<name>/`:
 
@@ -328,7 +336,9 @@ omarchy-plugin-gate doctor --fix # tripwires
 ```
 
 `check` bootstraps the first review from the whole tree when no
-`gate-approved` exists yet.
+`gate-approved` exists yet. That review covers upstream's current commit; if
+the installed copy is at another one, `status` and `doctor` report it as never
+reviewed until `update` moves it.
 
 ## Development
 
@@ -372,7 +382,8 @@ over the environment and the environment over the config file, install copying
 the example config without overwriting one, shell completions being linked on
 install and removed on uninstall (keeping a file of your own) and completing
 plugin names and held commits in bash and, when installed, fish, `doctor`
-spotting a stale reviewer agent, update applying and refusing, the tripwire
+spotting a stale reviewer agent, update applying and refusing (including an
+installed copy with local changes or an unreviewed commit), the tripwire
 rolling back a rejected pull while leaving local commits alone, notification
 policy, one-time approvals (including dry run, `--sha`, `--show`, and the
 resulting update), both `add` outcomes, and installing a plugin whose `add`

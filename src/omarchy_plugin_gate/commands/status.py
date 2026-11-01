@@ -2,9 +2,10 @@
 
 from ..config import APPROVED_REF
 from ..context import Context
+from ..git import Repo
 from ..output import indented, info, printable, say
 from ..plugins import selected_names
-from . import installed_sha
+from . import installed_sha, path_list
 
 
 def plugin_state(
@@ -42,6 +43,12 @@ def show_one(ctx: Context, name: str) -> None:
         f"upstream  {upstream[:12]}{f'  (origin/{branch}, as of the last check)' if branch else ''}"
     )
     info(f"state     {state}")
+    if inst and idir:
+        dirty = Repo(idir).dirty_paths()
+        if dirty:
+            info(f"local     modified: {path_list(dirty)}")
+        if not ctx.state.has_approval(name, inst):
+            info("warning   installed commit never reviewed")
     if approved and ctx.state.has_waiver(name, approved):
         reason = ctx.state.waiver_reason(name, approved)
         info(f"approval  waived by hand{f' — {reason}' if reason else ''}")

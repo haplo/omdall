@@ -9,10 +9,32 @@ from ..git import Repo
 from ..hooks import hook_ok, install_hook
 from ..output import bad, info, ok, say, warn
 from ..plugins import same_path, selected_names
+from . import path_list
 
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace").rstrip("\n")
+
+
+def _installed_drift(ctx: Context, name: str, installed: Repo) -> int:
+    """Problems with what is on disk in the installed copy."""
+    problems = 0
+    head = installed.head()
+    if head and ctx.state.has_approval(name, head):
+        ok("installed commit was reviewed or waived")
+    else:
+        bad(f"installed commit {head or '(none)'} was never reviewed")
+        problems += 1
+    dirty = installed.dirty_paths()
+    if dirty:
+        bad(f"installed copy has local changes: {path_list(dirty)}")
+        problems += 1
+    else:
+        ok("installed copy has no local changes")
+    ignored = installed.ignored_paths()
+    if ignored:
+        info(f"installed copy has ignored files (not reviewed): {path_list(ignored)}")
+    return problems
 
 
 def doctor_one(ctx: Context, name: str, fix: bool) -> bool:
@@ -63,6 +85,7 @@ def doctor_one(ctx: Context, name: str, fix: bool) -> bool:
                 "plain omarchy plugin update would bypass the gate"
             )
             problems += 1
+        problems += _installed_drift(ctx, name, Repo(idir))
     else:
         info(f"not installed yet ({idir or ctx.cfg.installed_root / '<no id>'})")
 

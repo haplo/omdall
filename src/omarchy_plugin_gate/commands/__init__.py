@@ -4,6 +4,7 @@ from pathlib import Path
 
 from .. import proc
 from ..git import Repo
+from ..output import printable
 
 
 def advance_main(repo: Repo, sha: str) -> None:
@@ -24,6 +25,13 @@ def installed_sha(directory: Path | None) -> str | None:
     if directory is None or not directory.is_dir():
         return None
     return Repo(directory).head()
+
+
+def path_list(paths: list[str], limit: int = 3) -> str:
+    """The first few paths, escaped, for one line of output."""
+    shown = ", ".join(printable(p) for p in paths[:limit])
+    more = len(paths) - limit
+    return f"{shown} and {more} more" if more > 0 else shown
 
 
 def disable_plugin(plugin_id: str) -> None:

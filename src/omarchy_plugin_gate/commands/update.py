@@ -9,7 +9,7 @@ from ..install import install_new
 from ..notify import notify, notify_close
 from ..output import info, say, warn
 from ..plugins import approved_manifest_id, selected_names
-from . import disable_plugin, installed_sha
+from . import disable_plugin, installed_sha, path_list
 
 
 def _detail(result: proc.Result) -> str:
@@ -50,6 +50,11 @@ def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
         return False
 
     installed = Repo(idir)
+    # Edited or untracked files survive a fast-forward and were never reviewed.
+    dirty = installed.dirty_paths()
+    if dirty:
+        warn(f"{name}: the installed copy has local changes ({path_list(dirty)}); not updating")
+        return False
     fetched = installed.git("fetch", "--quiet", "origin", APPROVED_REF, check=False)
     if not fetched.ok:
         warn(f"{name}: could not fetch gate-approved from the clone{_detail(fetched)}")

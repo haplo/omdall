@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from omarchy_plugin_gate.commands import advance_main
-from omarchy_plugin_gate.git import Repo, parse_numstat_z, parse_raw_z
+from omarchy_plugin_gate.git import Repo, parse_numstat_z, parse_raw_z, parse_status_z
 from support import Upstream, git
 
 Z40 = "0" * 40
@@ -29,6 +29,38 @@ def test_parse_raw_z_rejects_garbage() -> None:
 def test_parse_numstat_z() -> None:
     data = b"1\t0\ta\tb.qml\0-\t-\tpayload.bin\0" + b"2\t1\t\0old.qml\0new.qml\0"
     assert parse_numstat_z(data) == {"a\tb.qml": False, "payload.bin": True, "new.qml": False}
+
+
+def test_parse_status_z() -> None:
+    data = b" M Widget.qml\0R  new.qml\0old.qml\0?? line\nbreak\0!! cache/x\0"
+    assert parse_status_z(data) == [
+        (" M", "Widget.qml"),
+        ("R ", "new.qml"),
+        ("??", "line\nbreak"),
+        ("!!", "cache/x"),
+    ]
+
+
+def test_parse_status_z_rejects_garbage() -> None:
+    with pytest.raises(ValueError, match="unexpected status record"):
+        parse_status_z(b"garbage\0")
+
+
+def test_dirty_and_ignored_paths(upstream: Upstream) -> None:
+    repo = upstream.repo
+    assert repo.dirty_paths() == []
+    assert repo.ignored_paths() == []
+    (upstream.path / ".git" / "info").mkdir(exist_ok=True)
+    (upstream.path / ".git" / "info" / "exclude").write_text("cache/\n")
+    upstream.write("cache/deep/x", "x")
+    assert repo.dirty_paths() == []
+    assert repo.ignored_paths() == ["cache/deep/x"]
+    upstream.write("Widget.qml", "import QtQuick\nItem {}\n// changed\n")
+    upstream.write("new dir/extra.qml", "x\n")
+    assert sorted(repo.dirty_paths()) == ["Widget.qml", "new dir/extra.qml"]
+    git(upstream.path, "add", "-A")
+    git(upstream.path, "mv", "Widget.qml", "Moved.qml")
+    assert sorted(repo.dirty_paths()) == ["Moved.qml", "new dir/extra.qml"]
 
 
 def test_parse_keeps_undecodable_bytes() -> None:
