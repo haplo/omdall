@@ -45,6 +45,16 @@ All notable changes to omarchy-plugin-gate. The format follows
   run read it (or, for `add`, only if it does not exist yet). The gate's own
   merges of approved commits no longer start the tripwire, which would have
   waited for the lock the gate holds.
+- `add` cloned whatever URL it was given. Over `http://` or `git://`, which
+  are not authenticated, anyone on the network path could choose the plugin
+  that was reviewed and installed, and a transport helper (`ext::`) runs a
+  command if the user's git config allows it. `add` now accepts only
+  `https://`, `ssh://`, `user@host:path`, `file://` and absolute paths, refuses
+  `::` helpers and anything starting with `-`, also requires
+  `omarchy-git-url-check` to pass when it is installed (as `omarchy plugin add`
+  does), and clones with `GIT_ALLOW_PROTOCOL=https:ssh:file`, so a
+  `url.insteadOf` rewrite or a permissive `protocol.allow` cannot widen that.
+  `doctor` reports a clone whose origin uses `http://` or `git://`.
 
 ## [0.5.0] - 2026-10-31
 

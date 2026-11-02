@@ -22,7 +22,8 @@ usage: omarchy-plugin-gate [options] <command> [command options] [options]
 
   add <git-url> [--dir NAME] [--no-enable]
       Clone into the gate root, review the initial tree, install it disabled,
-      enable it only on REVIEW PASS.
+      enable it only on REVIEW PASS. The URL must be https://, ssh://,
+      user@host:path, file:// or an absolute path.
 
   check [-p NAME]
       Fetch upstream, review new commits, stage approved ones. Never installs.

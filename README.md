@@ -90,6 +90,15 @@ omarchy-plugin-gate status
 A notification appears only when something needs a decision: an update is ready
 to install, or a review was held back. A successful `update` closes it.
 
+`add` clones only over `https://`, `ssh://` (or `user@host:path`), `file://`,
+or from an absolute local path. It refuses `http://` and `git://`, which are not
+authenticated, so anyone on the network path could choose the code that gets
+reviewed and installed; it also refuses transport helpers (`ext::…`) and
+anything that looks like an option. When `omarchy-git-url-check` is installed,
+the URL must pass it too, and the clone itself runs with git limited to those
+protocols whatever your git config allows. `doctor` reports a clone whose
+origin uses `http://` or `git://`.
+
 ## How it works
 
 ```
@@ -409,7 +418,8 @@ spotting a stale reviewer agent, update applying and refusing (including an
 installed copy with local changes or an unreviewed commit), the tripwire
 rolling back a rejected pull while leaving local commits alone, notification
 policy, one-time approvals (including dry run, `--sha`, `--show`, and the
-resulting update), both `add` outcomes, and installing a plugin whose `add`
+resulting update), both `add` outcomes, `add` refusing unsafe URLs before
+cloning, and installing a plugin whose `add`
 review failed once it has been approved by hand. No network, no real plugin install.
 
 ## Uninstall

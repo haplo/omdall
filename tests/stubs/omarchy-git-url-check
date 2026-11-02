@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stub omarchy-git-url-check: logs every call; refuses a URL containing
+# $STUB_URL_REFUSE when that is set.
+printf 'omarchy-git-url-check %s\n' "$*" >>"$OMARCHY_LOG"
+if [[ -n ${STUB_URL_REFUSE:-} && $1 == *"$STUB_URL_REFUSE"* ]]; then
+  echo "omarchy-git-url-check: '$1' refused by the stub" >&2
+  exit 1
+fi
+exit 0

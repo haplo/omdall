@@ -11,7 +11,7 @@ from ..context import Context
 from ..hooks import ensure_hooks
 from ..install import echo, install_new
 from ..notify import notify
-from ..output import GateError, indented, info, say
+from ..output import GateError, indented, info, printable, say
 from ..review import review
 
 
@@ -20,6 +20,58 @@ class AddArgs:
     url: str
     dir: str = ""
     enable: bool = True
+
+
+# The transports add clones over, in git's GIT_ALLOW_PROTOCOL spelling. A local
+# path counts as file.
+ALLOWED_SCHEMES = ("https", "ssh", "file")
+GIT_ALLOW_PROTOCOL = ":".join(ALLOWED_SCHEMES)
+_SCHEME = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*)://")
+_SCP_LIKE = re.compile(r"(?:[^@/:]+@)?[A-Za-z0-9][A-Za-z0-9._-]*:.+")
+
+
+def insecure_scheme(url: str) -> str | None:
+    """`http` or `git` when `url` uses a transport with no authentication."""
+    m = _SCHEME.match(url)
+    scheme = m.group(1).lower() if m else ""
+    return scheme if scheme in ("http", "git") else None
+
+
+def url_problem(url: str) -> str | None:
+    """Why add refuses `url`, or None. Only authenticated transports and local
+    repositories: over http:// or git:// anyone on the network path chooses the
+    code that is reviewed and installed."""
+    if not url:
+        return "add needs a git URL"
+    if printable(url) != url:
+        return f"'{printable(url)}' contains control characters"
+    if url.startswith("-"):
+        return f"'{url}' looks like an option, not a repository"
+    if "::" in url:
+        return f"'{url}' names a git transport helper, not a repository"
+    if scheme := insecure_scheme(url):
+        return (
+            f"'{url}' uses {scheme}://, which is not authenticated: anyone on the network "
+            "path could choose the code under review; use https:// or ssh://"
+        )
+    if m := _SCHEME.match(url):
+        if m.group(1) in ALLOWED_SCHEMES:
+            return None
+        return f"'{url}' uses the {m.group(1)}:// transport; use https://, ssh:// or file://"
+    if url.startswith("/") or _SCP_LIKE.fullmatch(url):
+        return None
+    return f"'{url}' is neither a URL nor an absolute path"
+
+
+def _check_url(url: str) -> None:
+    if problem := url_problem(url):
+        raise GateError(problem)
+    # Omarchy's own check, the one `omarchy plugin add` runs, when it is there.
+    if proc.which("omarchy-git-url-check"):
+        result = proc.run(["omarchy-git-url-check", url], check=False)
+        if not result.ok:
+            echo(result)
+            raise GateError(f"omarchy-git-url-check refused '{url}'")
 
 
 def clone_name(url: str, override: str = "") -> str:
@@ -46,8 +98,7 @@ def _already_installed(plugin_id: str) -> bool:
 
 
 def run(ctx: Context, args: AddArgs) -> int:
-    if not args.url:
-        raise GateError("add needs a git URL")
+    _check_url(args.url)
     name = clone_name(args.url, args.dir)
     clone_dir = ctx.clone_dir(name)
     if clone_dir.exists():
@@ -59,7 +110,13 @@ def run(ctx: Context, args: AddArgs) -> int:
 
     ctx.cfg.root.mkdir(parents=True, exist_ok=True)
     say(f"Cloning {args.url} into {clone_dir}")
-    result = proc.run(["git", "clone", "--quiet", "--", args.url, str(clone_dir)], check=False)
+    # The allow-list also holds if the user's config enables more protocols or a
+    # url.insteadOf rewrites the URL.
+    result = proc.run(
+        ["git", "clone", "--quiet", "--", args.url, str(clone_dir)],
+        check=False,
+        env={"GIT_ALLOW_PROTOCOL": GIT_ALLOW_PROTOCOL},
+    )
     if not result.ok:
         echo(result)
         raise GateError("clone failed")

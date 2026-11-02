@@ -7,9 +7,10 @@ from ..config import APPROVED_REF
 from ..context import Context
 from ..git import Repo
 from ..hooks import hook_ok, hook_target, install_hook
-from ..output import bad, info, ok, say, warn
+from ..output import bad, info, ok, printable, say, warn
 from ..plugins import same_path, selected_names
 from . import path_list
+from .add import insecure_scheme
 
 
 def _read(path: Path) -> str:
@@ -60,11 +61,18 @@ def doctor_one(ctx: Context, name: str, fix: bool) -> bool:
         problems += 1
 
     origin = clone.remote_url()
-    if origin:
-        ok(f"origin: {origin}")
-    else:
+    if not origin:
         bad("clone has no origin")
         problems += 1
+    elif scheme := insecure_scheme(origin):
+        bad(
+            f"origin {printable(origin)} uses {scheme}://, which is not authenticated: anyone "
+            "on the network path could choose the code under review "
+            f"(fix: git -C {clone_dir} remote set-url origin <https or ssh URL>)"
+        )
+        problems += 1
+    else:
+        ok(f"origin: {origin}")
     if same_path(origin, clone_dir, base=clone_dir):
         bad("clone's origin points at itself")
         problems += 1

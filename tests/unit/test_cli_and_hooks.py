@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import __version__, cli
-from omarchy_plugin_gate.commands import doctor
-from omarchy_plugin_gate.commands.add import clone_name
+from omarchy_plugin_gate import __version__, cli, proc
+from omarchy_plugin_gate.commands import add, doctor
+from omarchy_plugin_gate.commands.add import clone_name, insecure_scheme, url_problem
 from omarchy_plugin_gate.commands.status import plugin_state
 from omarchy_plugin_gate.config import Config, Overrides
 from omarchy_plugin_gate.context import Context
@@ -202,6 +202,90 @@ def test_clone_name(url: str, override: str, name: str) -> None:
 def test_clone_name_refuses(url: str) -> None:
     with pytest.raises(GateError):
         clone_name(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/o/omasync",
+        "ssh://git@github.com/o/omasync.git",
+        "git@github.com:o/omasync.git",
+        "host:repo",
+        "file:///srv/plugins/omasync",
+        "/home/me/my plugins/omasync.git",
+    ],
+)
+def test_url_accepted(url: str) -> None:
+    assert url_problem(url) is None
+
+
+@pytest.mark.parametrize(
+    ("url", "reason"),
+    [
+        ("", "needs a git URL"),
+        ("http://example.com/x", "uses http://, which is not authenticated"),
+        ("HTTP://example.com/x", "uses http://, which is not authenticated"),
+        ("git://example.com/x", "uses git://, which is not authenticated"),
+        ("ext::sh -c touch% /tmp/x", "transport helper"),
+        ("https::example.com/x", "transport helper"),
+        ("fd::17", "transport helper"),
+        ("ftp://example.com/x", "uses the ftp:// transport"),
+        ("git+ssh://example.com/x", "uses the git+ssh:// transport"),
+        ("HTTPS://example.com/x", "uses the HTTPS:// transport"),
+        ("-uhack", "looks like an option"),
+        ("--upload-pack=x", "looks like an option"),
+        ("relative/path", "neither a URL nor an absolute path"),
+        ("./plugin", "neither a URL nor an absolute path"),
+        ("-host:repo", "looks like an option"),
+        ("user@-host:repo", "neither a URL nor an absolute path"),
+        ("https://x/\x1b]52;c;x\x07", "contains control characters"),
+    ],
+)
+def test_url_refused(url: str, reason: str) -> None:
+    problem = url_problem(url)
+    assert problem is not None
+    assert reason in problem
+    assert printable(problem) == problem
+
+
+def test_insecure_scheme() -> None:
+    assert insecure_scheme("git://x/y") == "git"
+    assert insecure_scheme("Http://x/y") == "http"
+    assert insecure_scheme("https://x/y") is None
+    assert insecure_scheme("/srv/git://x") is None
+
+
+def test_add_clones_over_allowed_protocols_only(
+    ctx: Context, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[list[str], object]] = []
+
+    def run(argv: list[str], **kwargs: object) -> proc.Result:
+        calls.append((list(argv), kwargs.get("env")))
+        return proc.Result(tuple(argv), 128, b"", b"stopped here")
+
+    monkeypatch.setattr(proc, "which", lambda _name: None)
+    monkeypatch.setattr(proc, "run", run)
+    with pytest.raises(GateError, match="clone failed"):
+        add.run(ctx, add.AddArgs("https://example.invalid/demo"))
+    ((argv, env),) = calls
+    assert argv[:2] == ["git", "clone"]
+    assert env == {"GIT_ALLOW_PROTOCOL": "https:ssh:file"}
+
+
+def test_add_asks_omarchy_about_the_url(ctx: Context, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def run(argv: list[str], **_kwargs: object) -> proc.Result:
+        calls.append(list(argv))
+        return proc.Result(tuple(argv), 1, b"", b"no")
+
+    monkeypatch.setattr(proc, "which", lambda name: f"/stub/{name}")
+    monkeypatch.setattr(proc, "run", run)
+    with pytest.raises(GateError, match="omarchy-git-url-check refused"):
+        add.run(ctx, add.AddArgs("https://example.invalid/demo"))
+    assert calls == [["omarchy-git-url-check", "https://example.invalid/demo"]]
+    assert not ctx.clone_dir("demo").exists()
 
 
 @pytest.mark.parametrize(

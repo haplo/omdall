@@ -8,6 +8,30 @@ eq 'add exits 0' "$?" 0
 has "$OMARCHY_LOG" 'plugin add' 'installed through omarchy'
 has "$OMARCHY_LOG" 'plugin enable selftest.demo --section right' 'enabled in the default section'
 assert 'tripwire installed in the new clone' test -x "$B/root/added/.git/hooks/post-merge"
+has "$OMARCHY_LOG" "omarchy-git-url-check $B/upstream.git" 'URL checked by omarchy'
+
+printf '\n== add refuses unsafe URLs before cloning ==\n'
+for url in git://example.invalid/x http://example.invalid/x 'ext::sh -c x' -ux; do
+  : >"$OMARCHY_LOG"
+  out=$("$GATE" add --dir unsafe -- "$url" 2>&1)
+  eq "$url: add fails" "$?" 1
+  has <(printf '%s' "$out") "'$url'" "$url: refusal names the URL"
+  refute "$url: nothing cloned" test -e "$B/root/unsafe"
+  refute "$url: omarchy not asked" grep -q . "$OMARCHY_LOG"
+done
+out=$("$GATE" add git://example.invalid/x 2>&1)
+has <(printf '%s' "$out") 'uses git://, which is not authenticated' 'git:// refusal explained'
+: >"$OMARCHY_LOG"
+out=$(STUB_URL_REFUSE=upstream "$GATE" add "$B/upstream.git" --dir unsafe 2>&1)
+eq 'omarchy-git-url-check refusal: add fails' "$?" 1
+has <(printf '%s' "$out") "omarchy-git-url-check refused '$B/upstream.git'" 'omarchy refusal explained'
+refute 'omarchy-git-url-check refusal: nothing cloned' test -e "$B/root/unsafe"
+
+printf '\n== doctor flags an unauthenticated origin ==\n'
+git -C "$B/root/added" remote set-url origin git://example.invalid/upstream
+out=$("$GATE" doctor -p added 2>&1)
+has <(printf '%s' "$out") '✗ origin git://example.invalid/upstream uses git://' 'doctor reports git://'
+git -C "$B/root/added" remote set-url origin "$B/upstream.git"
 
 : >"$OMARCHY_LOG"
 STUB_FAIL_ON='A fixture widget' "$GATE" add "$B/upstream.git" --dir rejected >/dev/null 2>&1
