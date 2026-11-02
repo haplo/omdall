@@ -154,16 +154,29 @@ class State:
         self.held_file(name).unlink(missing_ok=True)
 
     def set_waiver(
-        self, name: str, sha: str, *, user: str, reason: str, base: str, patch_blob: str
+        self,
+        name: str,
+        sha: str,
+        *,
+        user: str,
+        reason: str,
+        base: str,
+        patch_blob: str,
+        evidence_blob: str = "",
     ) -> None:
         """A waiver is a human decision, not a review result. It lives apart from
         reviewed/ so status can say a person overrode the model, and a later
-        re-review cannot erase the record."""
+        re-review cannot erase the record.
+
+        `patch_blob` is the diff from `base` that the approval let through;
+        `evidence_blob`, when set, the different patch the recorded review saw."""
         lines = [f"WAIVED {now()} {sha} by {one_line(user)}", f"reason: {one_line(reason)}"]
         if base:
             lines.append(f"base: {base}")
         if patch_blob:
             lines.append(f"patch-blob: {patch_blob}")
+        if evidence_blob:
+            lines.append(f"evidence-blob: {evidence_blob}")
         write_atomic(self.waiver(name, sha), "\n".join(lines) + "\n")
         held = self.held(name)
         if held and held.sha == sha:

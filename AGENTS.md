@@ -170,7 +170,8 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   review for one commit, but only after printing the evidence and collecting a
   reason (possibly empty). Keep the failed verdict, write the waiver under
   `<state>/<name>/waived/<sha>` with date/user/base/patch hash, and never make
-  the path automatic or plugin-wide.
+  the path automatic or plugin-wide. The patch shown and hashed is the diff
+  from the current `gate-approved` to the candidate, not the stored evidence.
 
 ## Conventions
 

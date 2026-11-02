@@ -74,19 +74,25 @@ def run(ctx: Context, args: ApproveArgs) -> int:
             info(f"held      {printable(reasons[0])}")
             indented(reasons[1:])
 
-    if args.show:
-        if rd.patch.is_file():
-            say()
-            say("--- patch ---")
-            # The patch is the plugin author's bytes: escape control characters so
-            # it cannot rewrite the screen or reach the terminal's clipboard.
-            text = rd.patch.read_bytes().decode("utf-8", "replace").removesuffix("\n")
-            say(safe_text(text))
-            say("--- end patch ---")
-        else:
-            warn(f"{name}: no patch recorded for {sha[:12]}")
-
+    # What this approval lets through is the diff from where gate-approved is
+    # now, which is not necessarily what the recorded review covered.
     old = clone.rev(APPROVED_REF)
+    fresh = clone.diff(old or clone.empty_tree, sha)
+    stored = rd.patch.read_bytes() if rd.patch.is_file() else None
+    if stored != fresh:
+        warn(
+            f"{name}: the recorded review covered a different diff than this approval "
+            "(base moved or evidence missing)"
+        )
+
+    if args.show:
+        say()
+        say(f"--- patch {old[:12] if old else '(empty tree)'}..{sha[:12]} ---")
+        # The patch is the plugin author's bytes: escape control characters so
+        # it cannot rewrite the screen or reach the terminal's clipboard.
+        say(safe_text(fresh.decode("utf-8", "replace").removesuffix("\n")))
+        say("--- end patch ---")
+
     if old == sha and ctx.state.has_approval(name, sha):
         say(f"{name}: {sha[:12]} is already approved; nothing to do")
         return 0
@@ -104,6 +110,11 @@ def run(ctx: Context, args: ApproveArgs) -> int:
 
     reason = args.reason
     if reason is None:
+        if not verdict and not args.show:
+            raise GateError(
+                f"{name}: {sha[:12]} has no review verdict; read the diff with --show, "
+                "or pass --reason to approve it without"
+            )
         if not sys.stdin.isatty():
             raise GateError(
                 "no terminal for the reason prompt; pass --reason (an empty reason is allowed)"
@@ -116,9 +127,14 @@ def run(ctx: Context, args: ApproveArgs) -> int:
         reason = line.rstrip("\n")
     reason = one_line(reason)
 
-    patch_blob = clone.hash_object(rd.patch.read_bytes()) if rd.patch.is_file() else ""
     ctx.state.set_waiver(
-        name, sha, user=ctx.cfg.user, reason=reason, base=old or "", patch_blob=patch_blob
+        name,
+        sha,
+        user=ctx.cfg.user,
+        reason=reason,
+        base=old or "",
+        patch_blob=clone.hash_object(fresh),
+        evidence_blob=clone.hash_object(stored) if stored is not None and stored != fresh else "",
     )
     clone.update_ref(APPROVED_REF, sha, old)
     advance_main(clone, sha)

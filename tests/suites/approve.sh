@@ -62,3 +62,42 @@ eq 'structural approve: candidate held' "$(head -1 "$B/state/demo/held")" "$held
 eq 'structural approve: advances gate-approved' "$(ap)" "$held3"
 eq 'structural approve: reviewer never called' "$(invocations)" "$n0"
 has "$B/state/demo/waived/$held3" 'reason: I need this one' 'structural approve: reason kept'
+
+# The diff git would give for <base>..<sha>, with the gate's options.
+gate_diff_blob() {
+  git -C "$B/root/demo" diff --no-color --no-ext-diff --no-textconv \
+    --src-prefix=a/ --dst-prefix=b/ -M "$1" "$2" | git hash-object --stdin
+}
+waiver_line() { grep "^$2: " "$B/state/demo/waived/$1" | cut -d' ' -f2; }
+
+printf '\n== approve records the diff it lets through ==\n'
+base=$(ap)
+commit_upstream 'printf "// parent-of-held\n" >> Widget.qml' 'parent'
+parent=$(git -C "$B/upstream" rev-parse HEAD)
+commit_upstream 'printf "// NEEDS-HUMAN-MOVED\n" >> Widget.qml' 'moved base'
+STUB_FAIL_ON=NEEDS-HUMAN-MOVED "$GATE" check -p demo >/dev/null 2>&1
+moved=$(upstream_sha)
+eq 'moved: candidate held' "$(head -1 "$B/state/demo/held")" "$moved"
+
+out=$("$GATE" approve demo --sha "$parent" </dev/null 2>&1)
+eq 'never reviewed: no approval without --show or --reason' "$?" 1
+has <(printf '%s' "$out") 'has no review verdict; read the diff with --show' 'never reviewed: refusal explained'
+eq 'never reviewed: gate-approved unchanged' "$(ap)" "$base"
+
+out=$("$GATE" approve demo --sha "$parent" --reason 'read it on GitHub' 2>&1)
+eq 'never reviewed: approved with a reason' "$(ap)" "$parent"
+has <(printf '%s' "$out") 'the recorded review covered a different diff than this approval' \
+  'never reviewed: warned'
+eq 'never reviewed: patch-blob is the approved diff' "$(waiver_line "$parent" patch-blob)" \
+  "$(gate_diff_blob "$base" "$parent")"
+refute 'never reviewed: no evidence-blob' grep -q '^evidence-blob:' "$B/state/demo/waived/$parent"
+
+out=$("$GATE" approve demo --reason 'base moved' --show 2>&1)
+eq 'moved: approved' "$(ap)" "$moved"
+has <(printf '%s' "$out") 'the recorded review covered a different diff' 'moved: warned'
+has <(printf '%s' "$out") '+// NEEDS-HUMAN-MOVED' '--show prints the approved diff'
+refute '--show leaves out what was approved before' grep -qF '+// parent-of-held' <(printf '%s' "$out")
+eq 'moved: patch-blob is the approved diff' "$(waiver_line "$moved" patch-blob)" \
+  "$(gate_diff_blob "$parent" "$moved")"
+eq 'moved: evidence-blob is the reviewed patch' "$(waiver_line "$moved" evidence-blob)" \
+  "$(git hash-object "$B/state/demo/reviews/${moved:0:12}/patch")"

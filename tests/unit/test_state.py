@@ -40,6 +40,21 @@ def test_waiver_format(ctx: Context) -> None:
     assert not ctx.state.has_marker("demo", SHA)
 
 
+def test_waiver_records_different_evidence(ctx: Context) -> None:
+    ctx.state.set_waiver(
+        "demo",
+        SHA,
+        user="me",
+        reason="r",
+        base=OTHER,
+        patch_blob="c" * 40,
+        evidence_blob="d" * 40,
+    )
+    lines = ctx.state.waiver("demo", SHA).read_text().splitlines()
+    assert lines[2:] == [f"base: {OTHER}", f"patch-blob: {'c' * 40}", f"evidence-blob: {'d' * 40}"]
+    assert ctx.state.waiver_reason("demo", SHA) == "r"
+
+
 def test_waiver_keeps_a_different_held_commit(ctx: Context) -> None:
     ctx.state.record_held("demo", OTHER, "reason")
     ctx.state.set_waiver("demo", SHA, user="me", reason="", base="", patch_blob="")

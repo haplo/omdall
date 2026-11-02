@@ -55,6 +55,15 @@ All notable changes to omarchy-plugin-gate. The format follows
   does), and clones with `GIT_ALLOW_PROTOCOL=https:ssh:file`, so a
   `url.insteadOf` rewrite or a permissive `protocol.allow` cannot widen that.
   `doctor` reports a clone whose origin uses `http://` or `git://`.
+- `approve` showed the stored evidence, not the diff it approved. It printed
+  and hashed the patch the recorded review saw, but moved `gate-approved` from
+  wherever it was now, which may be a different base; and `--sha` on a commit
+  that was never reviewed went ahead with only a warning. `approve` now
+  computes the diff from the current `gate-approved` to the candidate, prints
+  that under `--show`, records its hash as `patch-blob`, and warns when the
+  recorded review covered a different diff; the reviewed patch's hash is then
+  kept as a new `evidence-blob` line in the waiver. A commit with no review
+  verdict needs `--show` or `--reason`.
 
 ## [0.5.0] - 2026-10-31
 

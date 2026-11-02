@@ -247,6 +247,12 @@ skips the prompt, which is also required when stdin is not a terminal. With
 `--show` it prints the patch before asking, and `-n` / `--dry-run` shows the
 decision without changing anything.
 
+The patch `--show` prints is computed fresh, from where `gate-approved` is now
+to the candidate: exactly what the approval lets through. When that is not the
+patch the recorded review saw (`gate-approved` moved since, or the commit was
+never reviewed), `approve` warns that the recorded review covered a different
+diff. A commit with no review verdict at all needs `--show` or `--reason`.
+
 Everything printed from the plugin or the reviewer has its control characters
 escaped: the patch under `--show`, and the verdict, findings and held reasons
 in `approve`, `status` and `add`. An escape sequence in a hostile patch shows
@@ -263,7 +269,8 @@ omarchy-plugin-gate update -p my-plugin
 
 A waiver is one commit, not a standing trust setting. It lives in
 `waived/<sha>` with the date, user, reason, base commit, and the blob hash of
-the patch that was on screen. The failed verdict is left untouched, so `status`
+the patch it let through (`patch-blob`); when the recorded review saw a
+different patch, its hash is kept too (`evidence-blob`). The failed verdict is left untouched, so `status`
 shows both `REVIEW FAIL` and `approval waived by hand`. `approve` moves
 `gate-approved` and installs the hooks; `update` still does the installation.
 
