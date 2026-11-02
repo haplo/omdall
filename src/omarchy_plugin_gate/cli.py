@@ -48,7 +48,8 @@ usage: omarchy-plugin-gate [options] <command> [command options] [options]
   doctor [-p NAME] [--fix]
       Verify the wiring (hooks, origin, refs, reviewer model) and that the
       installed copy is a reviewed commit with no local changes. --fix
-      installs missing hooks.
+      installs missing hooks, but never over a post-merge hook of your own or
+      into a core.hooksPath directory.
 
 Options, before or after the command. Each overrides its environment variable:
   --root DIR         OMARCHY_PLUGIN_GATE_ROOT       gate root

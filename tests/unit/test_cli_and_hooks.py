@@ -9,9 +9,9 @@ from omarchy_plugin_gate.commands.add import clone_name
 from omarchy_plugin_gate.commands.status import plugin_state
 from omarchy_plugin_gate.config import Config, Overrides
 from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.hooks import hook_ok, hook_text, install_hook
+from omarchy_plugin_gate.hooks import hook_ok, hook_target, hook_text, install_hook
 from omarchy_plugin_gate.output import GateError, printable
-from support import Upstream
+from support import Upstream, git
 
 LAUNCHER = Path(__file__).parents[2] / "bin" / "omarchy-plugin-gate"
 
@@ -249,13 +249,14 @@ def test_hook_names_its_plugin(cfg: Config) -> None:
 
 
 def test_no_hook_for_an_unprintable_name(cfg: Config, upstream: Upstream) -> None:
-    assert not install_hook(cfg, upstream.path, "evil\nrm -rf ~")
+    problem = install_hook(cfg, upstream.path, "evil\nrm -rf ~")
+    assert problem == "the plugin name evil\\nrm -rf ~ cannot go into a hook"
     assert not (upstream.path / ".git" / "hooks" / "post-merge").exists()
 
 
 def test_hook_install_and_detection(cfg: Config, upstream: Upstream) -> None:
     assert not hook_ok(cfg, upstream.path, "demo")
-    assert install_hook(cfg, upstream.path, "demo")
+    assert install_hook(cfg, upstream.path, "demo") is None
     hook = upstream.path / ".git" / "hooks" / "post-merge"
     assert hook.stat().st_mode & 0o111
     assert hook_ok(cfg, upstream.path, "demo")
@@ -263,15 +264,71 @@ def test_hook_install_and_detection(cfg: Config, upstream: Upstream) -> None:
 
 @pytest.mark.parametrize("other", ["dem", "demo2", "other"])
 def test_hook_for_another_plugin_is_stale(cfg: Config, upstream: Upstream, other: str) -> None:
-    assert install_hook(cfg, upstream.path, "demo")
+    assert install_hook(cfg, upstream.path, "demo") is None
     assert not hook_ok(cfg, upstream.path, other)
+    assert install_hook(cfg, upstream.path, other) is None
+    assert hook_ok(cfg, upstream.path, other)
+
+
+@pytest.mark.parametrize("hooks_path", ["{tmp}/global-hooks", "../shared-hooks", "hooks"])
+def test_no_hook_under_core_hookspath(
+    cfg: Config, upstream: Upstream, tmp_path: Path, hooks_path: str
+) -> None:
+    # A hooks directory outside .git is shared: the tripwire would run in every
+    # repository using it, and would replace whatever hook is already there.
+    git(upstream.path, "config", "core.hooksPath", hooks_path.format(tmp=tmp_path))
+    problem = install_hook(cfg, upstream.path, "demo")
+    assert problem is not None
+    assert problem.startswith("core.hooksPath is set (")
+    assert problem.endswith("), so the tripwire was not installed")
+    assert hook_target(upstream.path) == (None, problem)
+    assert not hook_ok(cfg, upstream.path, "demo")
+    assert not list(tmp_path.rglob("post-merge"))
+
+
+def test_hook_under_core_hookspath_inside_git_dir(cfg: Config, upstream: Upstream) -> None:
+    git(upstream.path, "config", "core.hooksPath", ".git/my-hooks")
+    assert install_hook(cfg, upstream.path, "demo") is None
+    assert (upstream.path / ".git" / "my-hooks" / "post-merge").is_file()
+    assert hook_ok(cfg, upstream.path, "demo")
+
+
+@pytest.mark.parametrize("kind", ["file", "symlink", "directory"])
+def test_foreign_hook_is_left_alone(
+    cfg: Config, upstream: Upstream, tmp_path: Path, kind: str
+) -> None:
+    hook = upstream.path / ".git" / "hooks" / "post-merge"
+    hook.parent.mkdir(exist_ok=True)
+    mine = "#!/bin/sh\necho my own hook\n"
+    match kind:
+        case "file":
+            hook.write_text(mine)
+        case "symlink":
+            (tmp_path / "mine").write_text(mine)
+            hook.symlink_to(tmp_path / "mine")
+        case _:
+            hook.mkdir()
+    problem = install_hook(cfg, upstream.path, "demo")
+    assert problem == f"a post-merge hook of your own exists at {hook.parent.resolve() / hook.name}"
+    assert not hook_ok(cfg, upstream.path, "demo")
+    if kind != "directory":
+        assert hook.read_text() == mine
+    assert hook.is_symlink() == (kind == "symlink")
+
+
+def test_hook_from_an_earlier_release_is_replaced(cfg: Config, upstream: Upstream) -> None:
+    hook = upstream.path / ".git" / "hooks" / "post-merge"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(f'#!/usr/bin/env bash\nexec "{cfg.self_path}" _post-merge "$top"\n')
+    assert install_hook(cfg, upstream.path, "demo") is None
+    assert hook_ok(cfg, upstream.path, "demo")
 
 
 @pytest.mark.parametrize("override", [Overrides(root="/elsewhere"), Overrides(state="/elsewhere")])
 def test_hook_with_other_paths_is_stale(
     cfg: Config, upstream: Upstream, tmp_path: Path, override: Overrides
 ) -> None:
-    assert install_hook(cfg, upstream.path, "demo")
+    assert install_hook(cfg, upstream.path, "demo") is None
     env = {
         "HOME": str(tmp_path / "home"),
         "OMARCHY_PLUGIN_GATE_ROOT": str(cfg.root),

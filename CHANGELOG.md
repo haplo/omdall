@@ -18,6 +18,15 @@ All notable changes to omarchy-plugin-gate. The format follows
   says `installed commit never reviewed` when the installed commit has neither
   a review nor a waiver; `doctor` reports both as problems and lists ignored
   files for information.
+- Installing the tripwire could replace hooks that were not the gate's. With
+  `core.hooksPath` set, git's hooks directory is wherever that points, often
+  one shared by every repository, so the gate replaced the shared `post-merge`
+  hook and its tripwire ran after merges everywhere. An existing `post-merge`
+  hook in the repository was also replaced without a backup. The gate now
+  writes a hook only inside the repository's git directory and only over one
+  it wrote itself; otherwise `check`, `approve` and `update` warn, and `doctor`
+  reports the reason as a problem. `doctor --fix` now also counts a hook it
+  could not install as a problem.
 
 ## [0.5.0] - 2026-10-31
 

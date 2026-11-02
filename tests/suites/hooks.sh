@@ -44,3 +44,37 @@ eq 'id change: installed copy rolled back' "$(git -C "$idir" rev-parse HEAD)" "$
 has "$B/state/demo/reviews/${renamed:0:12}/verdict" 'manifest id changed' 'id change: reviewed by the hook'
 eq 'id change: reviewer skipped' "$(invocations)" "$n0"
 has "$OMARCHY_LOG" 'plugin disable selftest.demo' 'id change: approved id disabled'
+
+printf '\n== a post-merge hook of your own is never replaced ==\n'
+reset_upstream "$(ap)"
+hook=$(realpath "$B/root/demo/.git/hooks")/post-merge
+printf '#!/bin/sh\necho mine\n' >"$hook"
+out=$("$GATE" doctor --fix 2>&1)
+has <(printf '%s' "$out") "no tripwire in the clone: a post-merge hook of your own exists at $hook" \
+  'doctor --fix reports the hook'
+has <(printf '%s' "$out") 'tripwire in the installed copy' 'the installed copy keeps its tripwire'
+commit_upstream 'printf "// own hook\n" >> Widget.qml' 'own hook'
+out=$("$GATE" check 2>&1)
+eq 'own hook: candidate approved' "$(ap)" "$(upstream_sha)"
+has <(printf '%s' "$out") "could not install the tripwire in $B/root/demo: a post-merge hook of your own" \
+  'check warns about the hook'
+eq 'own hook untouched' "$(cat "$hook")" "$(printf '#!/bin/sh\necho mine')"
+rm "$hook"
+
+printf '\n== no tripwire under core.hooksPath ==\n'
+mkdir -p "$B/shared-hooks"
+shared=$(realpath "$B/shared-hooks")
+git -C "$B/root/demo" config core.hooksPath "$shared"
+out=$("$GATE" doctor --fix 2>&1)
+has <(printf '%s' "$out") \
+  "no tripwire in the clone: core.hooksPath is set ($shared), so the tripwire was not installed" \
+  'doctor reports core.hooksPath'
+commit_upstream 'printf "// hooks path\n" >> Widget.qml' 'hooks path'
+out=$("$GATE" check 2>&1)
+eq 'hooks path: candidate approved' "$(ap)" "$(upstream_sha)"
+has <(printf '%s' "$out") "could not install the tripwire in $B/root/demo: core.hooksPath is set" \
+  'check warns about core.hooksPath'
+refute 'nothing written to the shared hooks directory' test -e "$shared/post-merge"
+git -C "$B/root/demo" config --unset core.hooksPath
+"$GATE" doctor --fix >/dev/null 2>&1
+assert 'tripwire back once core.hooksPath is unset' grep -q '_post-merge demo' "$B/root/demo/.git/hooks/post-merge"

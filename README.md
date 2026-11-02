@@ -272,6 +272,14 @@ manifest id. Hooks written by earlier releases did not name their plugin;
 `check`, `approve` and `update` rewrite them, and `doctor --fix` does too.
 Until then, such a hook only logs an error to `hooks.log`.
 
+The gate writes hooks only into the repository's own git directory and only
+over a hook it wrote itself. When `core.hooksPath` points elsewhere (a global
+hooks directory, say), a hook there would run in every repository using it, so
+no tripwire is installed; and a `post-merge` hook of your own is never
+replaced. `check`, `approve` and `update` warn about either case and `doctor`
+reports it as a problem. Unset `core.hooksPath` for the repository, or move
+your hook aside, then run `doctor --fix`.
+
 This is a net, not the main gate: `omarchy-shell` may already have rescanned by
 the time a hook finishes. The gate is what prevents bad code from arriving.
 

@@ -158,7 +158,9 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   hook is a net, not the gate — do not move primary enforcement into it. The
   hook passes its plugin name, and the tripwire takes the installed copy's id
   from the approved commit (`plugins.approved_manifest_id`); never work out
-  the plugin or its id from the merged working tree.
+  the plugin or its id from the merged working tree. Hooks are written only
+  inside the repository's common git directory (never into a `core.hooksPath`
+  elsewhere) and only over a hook the gate wrote (`hooks.hook_target`).
 - **Evidence is written before decisions are made.** `patch`, `patch.review`,
   `mech.txt`, `findings.txt`, `hints.txt`, `review.txt`, `verdict`, and (for passes that
   cleared findings) `cleared` under

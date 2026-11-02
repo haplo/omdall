@@ -6,7 +6,7 @@ from .. import proc
 from ..config import APPROVED_REF
 from ..context import Context
 from ..git import Repo
-from ..hooks import hook_ok, install_hook
+from ..hooks import hook_ok, hook_target, install_hook
 from ..output import bad, info, ok, say, warn
 from ..plugins import same_path, selected_names
 from . import path_list
@@ -95,11 +95,13 @@ def doctor_one(ctx: Context, name: str, fix: bool) -> bool:
     for label, directory in targets:
         if hook_ok(ctx.cfg, directory, name):
             ok(f"tripwire in {label}")
+            continue
+        problem = install_hook(ctx.cfg, directory, name) if fix else hook_target(directory)[1]
+        if problem:
+            bad(f"no tripwire in {label}: {problem}")
+            problems += 1
         elif fix:
-            if install_hook(ctx.cfg, directory, name):
-                ok(f"installed tripwire in {label}")
-            else:
-                bad(f"could not install tripwire in {label}")
+            ok(f"installed tripwire in {label}")
         else:
             bad(f"no current tripwire in {label} (run doctor --fix)")
             problems += 1

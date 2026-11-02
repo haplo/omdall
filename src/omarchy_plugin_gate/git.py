@@ -194,12 +194,21 @@ class Repo:
         r = self.git("remote", "get-url", name, check=False)
         return r.text if r.ok else ""
 
-    def git_path(self, name: str) -> Path | None:
-        r = self.git("rev-parse", "--git-path", name, check=False)
-        if not r.ok or not r.text:
+    def hook_dirs(self) -> tuple[Path, Path] | None:
+        """(hooks directory, common git directory), both absolute. The hooks
+        directory follows core.hooksPath, wherever that points."""
+        r = self.git(
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-path",
+            "hooks",
+            "--git-common-dir",
+            check=False,
+        )
+        lines = r.text.splitlines() if r.ok else []
+        if len(lines) != 2:
             return None
-        p = Path(r.text)
-        return p if p.is_absolute() else self.path / p
+        return Path(lines[0]), Path(lines[1])
 
     def diff(self, base: str, new: str, *pathspec: str) -> bytes:
         args = ["diff", *_DIFF_OPTS, base, new]
