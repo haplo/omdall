@@ -4,7 +4,7 @@ All notable changes to omarchy-plugin-gate. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## [0.6.0] - 2026-11-02
 
 ### Security
 
@@ -79,6 +79,11 @@ All notable changes to omarchy-plugin-gate. The format follows
   on vertical tab, form feed, the file, group and record separators, U+0085,
   U+2028 and U+2029. A reason such as `ok\u2028base: <sha>` therefore added a
   forged line to a waiver. All of these now become spaces.
+
+### Fixed
+
+- `--version` reported 0.4.0 in the 0.5.0 release, whose version number was
+  never bumped.
 
 ## [0.5.0] - 2026-10-31
 
@@ -378,7 +383,9 @@ Initial release.
 - A nightly systemd user timer for `check`, desktop notifications, mise tasks,
   install and uninstall scripts, and a fixture test suite.
 
-[Unreleased]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.1.0...v0.2.0

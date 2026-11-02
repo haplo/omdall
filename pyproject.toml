@@ -1,6 +1,6 @@
 [project]
 name = "omarchy-plugin-gate"
-version = "0.4.0"
+version = "0.6.0"
 description = "Review Omarchy shell plugin updates before they land"
 readme = "README.md"
 license = "MIT"
