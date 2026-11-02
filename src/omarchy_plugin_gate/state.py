@@ -20,8 +20,13 @@ def now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+# Everything str.splitlines() splits on, which is what read_lines uses, plus tab.
+_LINE_BREAKS = str.maketrans(dict.fromkeys("\n\r\t\v\f\x1c\x1d\x1e\x85\u2028\u2029", " "))
+
+
 def one_line(text: str) -> str:
-    return text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    """`text` as one line of a state file, however read_lines splits it."""
+    return text.translate(_LINE_BREAKS)
 
 
 def write_atomic(path: Path, data: str | bytes) -> None:

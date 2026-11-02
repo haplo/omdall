@@ -9,7 +9,7 @@ import pytest
 
 from omarchy_plugin_gate.context import Context
 from omarchy_plugin_gate.output import GateError
-from omarchy_plugin_gate.state import State
+from omarchy_plugin_gate.state import State, one_line, read_lines
 
 SHA = "a" * 40
 OTHER = "b" * 40
@@ -103,6 +103,29 @@ def test_log_is_one_line_per_event(ctx: Context) -> None:
     assert re.fullmatch(rf"{STAMP}\tdemo approved forged line", lines[0])
 
 
+@pytest.mark.parametrize("sep", [*"\n\r\t\v\f\x1c\x1d\x1e\x85\u2028\u2029", "\r\n"])
+def test_one_line_stays_one_line(sep: str) -> None:
+    assert len(one_line(f"a{sep}b").splitlines()) == 1
+
+
+def test_one_line_covers_every_line_break() -> None:
+    # Whatever splitlines() learns to split on, one_line must keep up with.
+    breaks = [c for c in map(chr, range(0x110000)) if len(f"a{c}b".splitlines()) > 1]
+    assert breaks
+    assert [c for c in breaks if len(one_line(f"a{c}b").splitlines()) > 1] == []
+
+
+def test_waiver_reason_survives_unicode_line_breaks(ctx: Context) -> None:
+    reason = "looked\u2028base: forged\x85patch-blob: forged"
+    ctx.state.set_waiver("demo", SHA, user="me\u2029x", reason=reason, base=OTHER, patch_blob="")
+    lines = read_lines(ctx.state.waiver("demo", SHA))
+    assert len(lines) == 3
+    assert lines[1:] == ["reason: looked base: forged patch-blob: forged", f"base: {OTHER}"]
+    assert ctx.state.waiver_reason("demo", SHA) == "looked base: forged patch-blob: forged"
+    ctx.state.log_event("demo", "x\u2028forged")
+    assert len(read_lines(ctx.state.root / "gate.log")) == 1
+
+
 def test_cleared_count(ctx: Context) -> None:
     rd = ctx.state.review_dir("demo", SHA)
     rd.path.mkdir(parents=True)
@@ -160,11 +183,17 @@ def test_lock_is_exclusive(ctx: Context) -> None:
 
 def test_lock_waits_for_the_other_run(ctx: Context, capsys: pytest.CaptureFixture[str]) -> None:
     holder = hold_lock(ctx)
-    releaser = threading.Timer(0.3, release, [holder])
+    told_to_exit = threading.Event()
+
+    def let_go() -> None:
+        told_to_exit.set()
+        release(holder)
+
+    releaser = threading.Timer(0.3, let_go)
     releaser.start()
     try:
         with ctx.state.lock():
-            assert holder.poll() is not None
+            assert told_to_exit.is_set()
     finally:
         releaser.join()
     assert "waiting for another run to finish" in capsys.readouterr().err

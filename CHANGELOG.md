@@ -73,6 +73,12 @@ All notable changes to omarchy-plugin-gate. The format follows
   (a `systemd/` directory of QML, a `.pem` CA bundle), as does deleting a
   protected file. The `plugin-reviewer` agent's list of findings changed;
   re-run `mise run install`.
+- A value written as one line of a state file could be read back as several.
+  Waivers, markers and the log replaced only newlines, carriage returns and
+  tabs, but the files are read with Python's `splitlines()`, which also splits
+  on vertical tab, form feed, the file, group and record separators, U+0085,
+  U+2028 and U+2029. A reason such as `ok\u2028base: <sha>` therefore added a
+  forged line to a waiver. All of these now become spaces.
 
 ## [0.5.0] - 2026-10-31
 

@@ -124,16 +124,16 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   are hard. Protected paths some plugins do use (`patterns.DENY_PATH`) stay
   findings, and so does deleting any protected file. A patch that is not
   valid UTF-8 is never attached as text by OpenCode, so the reviewer would see
-  no code at all; a file git treats as binary reaches it as "Binary files differ", so a
-  binary with a code suffix or name, an entry point, an executable, or
-  ELF/native library is hard, while other binaries and assets whose contents
-  do not match their type are findings. A `filter` attribute anywhere in the
-  tree, a `.lfsconfig`, or a changed LFS pointer is hard because a checkout
-  would write something other than the reviewed blob. The id must be a valid
-  plugin id (`patterns.valid_plugin_id`, checked by the gate itself), and
-  `plugins.manifest_id_of` returns `""` for anything else, so no path is ever
-  built from a bad id. `validate_tree` without `omarchy` on `PATH` is a hard
-  failure, never a skip.
+  no code at all; a file git treats as binary reaches it as "Binary files
+  differ", so a binary with a code suffix or name, an entry point, an
+  executable, or ELF/native library is hard, while other binaries and assets
+  whose contents do not match their type are findings. A `filter` attribute
+  anywhere in the tree, a `.lfsconfig`, or a changed LFS pointer is hard
+  because a checkout would write something other than the reviewed blob. The
+  id must be a valid plugin id (`patterns.valid_plugin_id`, checked by the
+  gate itself), and `plugins.manifest_id_of` returns `""` for anything else,
+  so no path is ever built from a bad id. `validate_tree` without `omarchy` on
+  `PATH` is a hard failure, never a skip.
 - **Every structural finding must be explicitly cleared.** Softer checks become
   numbered findings in the prompt. A `REVIEW PASS` counts only if each finding
   has exactly one `Fn CLEARED <reason>` line; missing, duplicate, `CONFIRMED`,
