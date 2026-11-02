@@ -27,6 +27,13 @@ All notable changes to omarchy-plugin-gate. The format follows
   it wrote itself; otherwise `check`, `approve` and `update` warn, and `doctor`
   reports the reason as a problem. `doctor --fix` now also counts a hook it
   could not install as a problem.
+- A rollback could delete uncommitted work. The tripwire, and `update` when a
+  merge went wrong, rolled back with `git reset --hard`, which also threw away
+  uncommitted changes the merge had left alone. They now use `git reset
+  --keep`, which keeps them. When even that would overwrite a local change,
+  nothing is discarded: the merged commit stays, the plugin is disabled (when
+  it is the installed copy), and the gate logs `could not roll back … without
+  discarding local changes` and sends a `rollback failed` notification.
 
 ## [0.5.0] - 2026-10-31
 

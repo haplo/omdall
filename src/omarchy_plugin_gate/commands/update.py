@@ -16,10 +16,24 @@ def _detail(result: proc.Result) -> str:
     return f": {result.error}" if result.error else ""
 
 
-def _roll_back(ctx: Context, name: str, installed: Repo, before: str | None) -> None:
-    if before:
-        installed.ok("reset", "--hard", "--quiet", before, no_attributes=True)
+def _roll_back(ctx: Context, name: str, installed: Repo, before: str | None) -> bool:
+    """Back to `before` and disabled. False when going back would have meant
+    discarding local changes; the plugin is disabled either way."""
+    rolled_back = not before or installed.ok(
+        "reset", "--keep", "--quiet", before, no_attributes=True
+    )
     disable_plugin(approved_manifest_id(ctx.clone(name)))
+    if not rolled_back:
+        problem = f"could not roll back to {before} without discarding local changes"
+        warn(f"{name}: {problem} in {installed.path}; the plugin is disabled")
+        ctx.state.log_event(name, f"update: {problem}")
+        notify(
+            ctx,
+            f"{name}: rollback failed",
+            f"The installed copy could not be rolled back without discarding local "
+            f"changes in {installed.path}, so the plugin was disabled. Look at it by hand.",
+        )
+    return rolled_back
 
 
 def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
@@ -76,12 +90,12 @@ def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
         return False
     if installed.head() != new:
         warn(f"{name}: merge landed on the wrong commit; rolling back")
-        _roll_back(ctx, name, installed, before)
-        notify(
-            ctx,
-            f"{name}: update rolled back",
-            "The installed copy did not match the approved commit.",
-        )
+        if _roll_back(ctx, name, installed, before):
+            notify(
+                ctx,
+                f"{name}: update rolled back",
+                "The installed copy did not match the approved commit.",
+            )
         return False
 
     if not proc.run_quiet(["omarchy", "plugin", "validate", str(idir)]):

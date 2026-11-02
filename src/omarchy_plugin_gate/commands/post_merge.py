@@ -44,9 +44,22 @@ def run(ctx: Context, name: str, directory: str) -> int:
         ctx.state.set_marker(name, new, "hook review")
         return 0
 
-    repo.ok("reset", "--hard", "--quiet", old, no_attributes=True)
+    # --keep, never --hard: uncommitted work the merge did not touch must survive.
+    rolled_back = repo.ok("reset", "--keep", "--quiet", old, no_attributes=True)
     if installed:
         disable_plugin(plugin_id)
+    if not rolled_back:
+        problem = f"could not roll back {new} without discarding local changes"
+        warn(f"tripwire: {problem} in {target}")
+        ctx.state.log_event(name, f"hook: {problem}")
+        notify(
+            ctx,
+            f"{name}: rollback failed",
+            f"The review of {new} failed, but it could not be rolled back without "
+            f"discarding local changes in {target}"
+            f"{', so the plugin was disabled' if installed else ''}. Look at it by hand.",
+        )
+        return 1
     ctx.state.log_event(name, f"hook: rolled back {new}")
     notify(
         ctx,

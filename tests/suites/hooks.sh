@@ -20,8 +20,12 @@ assert 'hook in the installed copy' test -x "$idir/.git/hooks/post-merge"
 has "$B/root/demo/.git/hooks/post-merge" "--root $B/root --state $B/state _post-merge" 'hook records root and state'
 base=$(git -C "$B/root/demo" rev-parse HEAD)
 commit_upstream 'printf "// NEEDS-HUMAN\n" >> Widget.qml' 'bad pull'
+jq '.name = "my local edit"' "$B/root/demo/manifest.json" >"$B/m" && mv "$B/m" "$B/root/demo/manifest.json"
 STUB_FAIL_ON=NEEDS-HUMAN bash -c "cd '$B/root/demo' && git pull -q --ff-only origin main" >/dev/null 2>&1
 eq 'rejected pull rolled back' "$(git -C "$B/root/demo" rev-parse HEAD)" "$base"
+has "$B/root/demo/manifest.json" 'my local edit' 'uncommitted edit survives the rollback'
+has "$B/state/gate.log" "hook: rolled back" 'rollback logged'
+git -C "$B/root/demo" checkout -q -- manifest.json
 commit_upstream 'printf "// fine\n" >> Widget.qml' 'good pull'
 good=$(git -C "$B/upstream" rev-parse HEAD)
 OMARCHY_PLUGIN_GATE_ROOT=$B/nowhere OMARCHY_PLUGIN_GATE_STATE=$B/wrong-state \

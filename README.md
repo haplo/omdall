@@ -266,6 +266,13 @@ copy. If a merge did not come through the gate (a manual `git pull`, say), the
 hook reviews the incoming commits and, on failure, resets them and disables the
 plugin. Commits you authored yourself are never reviewed or rolled back.
 
+The rollback (`git reset --keep`) keeps uncommitted changes in files the merge
+did not touch. When going back would overwrite one of your changes, the hook
+leaves the merged commit in place rather than discard your work: it disables
+the plugin (in the installed copy), logs `could not roll back`, and notifies
+you, so you can sort it out by hand. `update` rolls back the installed copy the
+same way when a merge goes wrong.
+
 Each hook names its plugin, and the installed copy is recognised by the id in
 the approved commit, so a merge cannot hide from the hook by changing the
 manifest id. Hooks written by earlier releases did not name their plugin;
