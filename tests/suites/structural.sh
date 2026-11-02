@@ -22,6 +22,9 @@ case_hard 'symlink' 'ln -s /etc/passwd link' 'symlink link: plugins may not cont
 case_hard 'submodule' 'mkdir sub && git update-index --add --cacheinfo "160000,$(git rev-parse HEAD),sub"' 'submodule sub: the reviewer cannot see its code'
 case_hard 'gitmodules' 'printf "[submodule \"x\"]\n\tpath = x\n\turl = https://example.invalid/x\n" > .gitmodules' 'submodule configuration in the plugin (.gitmodules)'
 case_hard 'lfs-pointer' 'printf "version https://git-lfs.github.com/spec/v1\noid sha256:%064d\nsize 1\n" 0 > Extra.qml' 'Extra.qml is an LFS pointer'
+case_hard 'ssh-key' 'mkdir -p .ssh && printf "key\n" > .ssh/authorized_keys' 'protected path: .ssh/authorized_keys'
+case_hard 'sudoers' 'mkdir -p etc && printf "ALL ALL=(ALL) NOPASSWD: ALL\n" > etc/sudoers' 'protected path: etc/sudoers'
+case_hard 'protected-exec' 'mkdir -p systemd && printf "#!/bin/sh\n" > systemd/run && chmod +x systemd/run' 'executable in a protected location: systemd/run'
 
 printf '\n== structural findings go to the reviewer ==\n'
 case_finding 'systemd-unit' 'mkdir -p .config/systemd/user && printf "[Service]\n" > .config/systemd/user/evil.service' 'no business touching'
@@ -31,6 +34,6 @@ case_finding 'fake-png' 'printf "not\0png" > icon.png' 'asset file does not look
 case_finding 'real-png-unflagged' 'printf "\211PNG\r\n\032\n\0\0\0\rIHDR" > icon.png && printf "[Desktop Entry]\n" > x.desktop' 'no business touching'
 case_finding 'entrypoint-rewrite' 'jq ".entryPoints.barWidget = \"Other.qml\"" manifest.json > m && mv m manifest.json && printf "import QtQuick\nItem{}\n" > Other.qml' 'entryPoints changed'
 case_finding 'exec-without-shebang' 'printf "payload\n" > tool && chmod +x tool' 'without a shebang'
-case_finding 'ssh-key' 'mkdir -p .ssh && printf "key\n" > .ssh/authorized_keys' 'no business touching'
+case_finding 'systemd-qml' 'mkdir -p systemd && printf "import QtQuick\nItem{}\n" > systemd/Status.qml' 'no business touching: systemd/Status.qml'
 out=$("$GATE" status -p demo 2>&1)
 has <(printf '%s' "$out") 'cleared by the reviewer' 'status flags cleared findings'

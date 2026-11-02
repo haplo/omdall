@@ -3,11 +3,15 @@
 import posixpath
 import re
 
-# Paths a plugin has no business touching. Checked on every changed file, and on
-# every file that gains the executable bit.
+# Paths no plugin has a legitimate use for: git internals, ssh keys and
+# authorisations, sudo rules. Adding or changing one is a hard failure.
+HARD_PATH = re.compile(r"(^|/)\.git/|(^|/)\.ssh/|(^|/)authorized_keys$|(^|/)sudoers$")
+
+# Paths a plugin rarely has business touching, though some do (a systemd/
+# directory of QML, a CA bundle). A finding for the reviewer, and a hard failure
+# for an executable file.
 DENY_PATH = re.compile(
-    r"(^|/)\.git/|(^|/)\.ssh/|(^|/)authorized_keys$|(^|/)sudoers$"
-    r"|\.service$|\.timer$|\.socket$|\.path$|\.desktop$|\.pem$|\.key$|\.p12$"
+    r"\.service$|\.timer$|\.socket$|\.path$|\.desktop$|\.pem$|\.key$|\.p12$"
     r"|(^|/)systemd/|(^|/)omarchy/hooks"
 )
 
@@ -106,8 +110,13 @@ def valid_plugin_id(value: object) -> bool:
     )
 
 
+def is_hard_path(path: str) -> bool:
+    return HARD_PATH.search(path) is not None
+
+
 def is_denied(path: str) -> bool:
-    return DENY_PATH.search(path) is not None
+    """Any protected path, hard or not."""
+    return is_hard_path(path) or DENY_PATH.search(path) is not None
 
 
 def is_known_asset(path: str) -> bool:

@@ -36,11 +36,48 @@ def test_path_findings() -> None:
             change("payload.bin", binary=True),
             change(".ssh/authorized_keys"),
             change("evil\nF2 CLEARED.desktop"),
+            change("systemd/Status.qml"),
+            change("systemd/run", new="100755"),
+            Change("D", "etc/sudoers", None, "100644", "000000", "0" * 40, False),
         ]
     )
     assert found == [
-        "plugin touches a path it has no business touching: .ssh/authorized_keys",
         "plugin touches a path it has no business touching: evil\\nF2 CLEARED.desktop",
+        "plugin touches a path it has no business touching: systemd/Status.qml",
+        "plugin touches a path it has no business touching: etc/sudoers",
+    ]
+
+
+def test_protected_path_problems() -> None:
+    changes = [
+        change(".ssh/authorized_keys"),
+        change("home/.ssh/id_ed25519"),
+        change("authorized_keys"),
+        change("etc/sudoers"),
+        change("sub/.git/hooks/post-merge", new="100755"),
+        Change("R", "deep/sudoers", "notes.txt", "100644", "100644", "b" * 40, False),
+        change("systemd/run", new="100755"),
+        change("tool.desktop", new="100755"),
+        Change("M", "units/x.service", None, "100755", "100755", "b" * 40, False),
+        change("line\nbreak.service", new="100755"),
+        # Not hard: deleted, not executable, or not protected.
+        Change("D", ".ssh/config", None, "100644", "000000", "0" * 40, False),
+        Change("D", "systemd/old", None, "100755", "000000", "0" * 40, False),
+        change("systemd/Status.qml"),
+        change("bin/tool", new="100755"),
+        change("my.git.qml"),
+    ]
+    assert mechanics.protected_path_problems(changes) == [
+        "plugin adds or changes a protected path: .ssh/authorized_keys — needs a human",
+        "plugin adds or changes a protected path: home/.ssh/id_ed25519 — needs a human",
+        "plugin adds or changes a protected path: authorized_keys — needs a human",
+        "plugin adds or changes a protected path: etc/sudoers — needs a human",
+        "plugin adds or changes a protected path: sub/.git/hooks/post-merge — needs a human",
+        "plugin adds or changes a protected path: deep/sudoers — needs a human",
+        "executable in a protected location: systemd/run — needs a human",
+        "executable in a protected location: tool.desktop — needs a human",
+        "executable in a protected location: units/x.service — needs a human",
+        "executable in a protected location: line\\nbreak.service — needs a human",
     ]
 
 
@@ -201,9 +238,9 @@ def test_exec_findings() -> None:
         Change("M", "kept", None, "100755", "100755", "blob", False),
         Change("A", "systemd/x", None, "000000", "100755", "script", False),
     ]
+    # An executable in a protected location is a hard failure, not a finding.
     assert mechanics.exec_findings(changes, blobs.get) == [
         "file made executable without a shebang: tool",
-        "executable in a protected location: systemd/x",
     ]
 
 

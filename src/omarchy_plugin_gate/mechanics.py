@@ -1,8 +1,9 @@
 """Structural checks, in two tiers.
 
 Hard failures are things the model cannot judge (a patch too large or not text,
-code git shows only as binary) or that break the gate's own bookkeeping
-(manifest identity, loadability); they are a REVIEW FAIL with no model call.
+code git shows only as binary), that break the gate's own bookkeeping
+(manifest identity, loadability), or that no plugin has a legitimate use for
+(ssh keys, sudo rules, git internals); they are a REVIEW FAIL with no model call.
 Findings are pattern matches that are usually, but not always, a problem; they
 go to the reviewer numbered F1..Fn and each must be explicitly cleared. Keyword
 hits go to the reviewer as plain hints.
@@ -94,11 +95,30 @@ def utf8_problem(patch: bytes) -> str | None:
     return f"patch is not valid UTF-8, so the reviewer cannot read it: {shown} — needs a human"
 
 
+def _protected_problem(c: Change) -> str | None:
+    if c.status == "D":
+        return None
+    shown = printable(c.path)
+    if patterns.is_hard_path(c.path):
+        return f"plugin adds or changes a protected path: {shown} — needs a human"
+    if c.new_mode == "100755" and patterns.is_denied(c.path):
+        return f"executable in a protected location: {shown} — needs a human"
+    return None
+
+
+def protected_path_problems(changes: Iterable[Change]) -> list[str]:
+    """Hard failures for files no plugin has a use for (.git/, .ssh/,
+    authorized_keys, sudoers) and for executables anywhere protected."""
+    return [p for c in changes if (p := _protected_problem(c))]
+
+
 def path_findings(changes: Iterable[Change]) -> list[str]:
+    """Findings for the other protected paths, and for deleting a protected file.
+    A file protected_path_problems reports is not reported again."""
     return [
         f"plugin touches a path it has no business touching: {printable(c.path)}"
         for c in changes
-        if patterns.is_denied(c.path)
+        if patterns.is_denied(c.path) and _protected_problem(c) is None
     ]
 
 
@@ -154,12 +174,9 @@ def exec_findings(changes: Iterable[Change], blob: Callable[[str], bytes | None]
     for c in changes:
         if not c.became_executable:
             continue
-        shown = printable(c.path)
-        if patterns.is_denied(c.path):
-            found.append(f"executable in a protected location: {shown}")
         content = blob(c.new_blob) or b""
         if not content.startswith(b"#!"):
-            found.append(f"file made executable without a shebang: {shown}")
+            found.append(f"file made executable without a shebang: {printable(c.path)}")
     return found
 
 
@@ -337,6 +354,7 @@ def check(
     result.hard += hard
     result.findings += found
     result.hard += mode_problems(changes)
+    result.hard += protected_path_problems(changes)
     result.findings += path_findings(changes)
     result.findings += exec_findings(changes, repo.blob)
 

@@ -175,6 +175,10 @@ merges of approved commits do not start the tripwire.
 - symlinks, submodules and `.gitmodules`: the patch shows a symlink only as
   its target path and a submodule only as `Subproject commit <sha>`, so the
   reviewer never sees what they point at
+- a file added or changed under `.git/` or `.ssh/`, or named `authorized_keys`
+  or `sudoers`, which no plugin has a use for; and an executable file in any
+  protected path (the findings list below), such as `systemd/run` or
+  `tool.desktop`
 - a manifest `id` change, or a manifest that can no longer be read
 - a manifest `id` that is not a valid plugin id: letters, digits, `.`, `_` and
   `-`, starting with a letter or digit, no `..`, and not in the reserved
@@ -195,10 +199,11 @@ handed to the reviewer with the patch:
   BMP, WOFF, WOFF2, TTF)
 - asset files whose contents do not start the way their type does, such as a
   `.png` that is not a PNG image
-- `.git/`, `.ssh/`, `authorized_keys`, `sudoers`, `systemd/`, `omarchy/hooks`,
-  `*.service`, `*.timer`, `*.socket`, `*.path`, `*.desktop`, `*.pem`, `*.key`,
-  `*.p12`
-- newly executable files without a shebang, or in one of the paths above
+- protected paths some plugins do use: `systemd/` (a directory of QML that shows
+  unit status, say), `omarchy/hooks`, `*.service`, `*.timer`, `*.socket`,
+  `*.path`, `*.desktop`, `*.pem` (a CA bundle), `*.key`, `*.p12`; and deleting
+  any protected file, including the hard-failure paths above
+- newly executable files without a shebang
 - manifest `kinds` or `entryPoints` changes
 - added code lines that pipe a download or decoder into a shell, use `/dev/tcp`,
   or pipe into `sudo`/`pkexec`

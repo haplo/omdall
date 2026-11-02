@@ -64,6 +64,15 @@ All notable changes to omarchy-plugin-gate. The format follows
   recorded review covered a different diff; the reviewed patch's hash is then
   kept as a new `evidence-blob` line in the waiver. A commit with no review
   verdict needs `--show` or `--reason`.
+- Paths no plugin has a use for were only findings, which a reviewer argued
+  into it could clear. Adding or changing a file under `.git/` or `.ssh/`, or
+  named `authorized_keys` or `sudoers`, is now a hard failure, and so is an
+  executable file in any protected path (`systemd/`, `*.service`, `*.desktop`
+  and the rest), which used to be a finding only when the file had just become
+  executable. Other protected paths stay findings, since some plugins use them
+  (a `systemd/` directory of QML, a `.pem` CA bundle), as does deleting a
+  protected file. The `plugin-reviewer` agent's list of findings changed;
+  re-run `mise run install`.
 
 ## [0.5.0] - 2026-10-31
 

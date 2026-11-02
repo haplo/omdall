@@ -118,8 +118,9 @@ Files changed:
 
 Hard structural checks: PASS (patch within the size limit and valid UTF-8,
 no code, entry point, executable or native library hidden as a binary file,
-no checkout filter or Git LFS content, no symlink or submodule,
-manifest id unchanged and valid, manifest valid, entry points inside the
+no checkout filter or Git LFS content, no symlink or submodule, nothing under
+.git/ or .ssh/, no authorized_keys or sudoers, no executable in a protected
+location, manifest id unchanged and valid, manifest valid, entry points inside the
 plugin and present).
 {findings}
 {hints}

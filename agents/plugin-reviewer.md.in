@@ -67,7 +67,9 @@ or invent the word.
 ## Structural findings
 
 The prompt may list structural findings numbered F1, F2, and so on. They come
-from pattern matching: a protected path, a binary file, an image or font whose
+from pattern matching: a protected path (a systemd unit or `systemd/`
+directory, a `.desktop` file, a key or certificate, Omarchy hooks, or a deleted
+protected file), a binary file, an image or font whose
 contents do not start the way its type does, an executable without a shebang,
 a manifest kinds/entryPoints change, or an added line that looks like
 download-and-execute. Each is a lead, not a verdict. Investigate every one in the

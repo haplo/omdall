@@ -116,12 +116,15 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   out of the prompt, and keep `seen_code` to cosmetic tolerance only.
 - **Hard structural failures never reach the model.** `mechanics.check` runs
   first; tests assert the stub reviewer is not invoked for those cases. Only
-  checks the model cannot judge or that protect the gate's own bookkeeping
-  (patch size, UTF-8 encoding, binary code, native code, checkout filters and
-  LFS, symlinks and submodules, manifest id, validity, entry points, finding
-  count, an unreadable manifest) are hard. A patch that is not valid UTF-8 is
-  never attached as text by OpenCode, so the reviewer would see no code at
-  all; a file git treats as binary reaches it as "Binary files differ", so a
+  checks the model cannot judge, that protect the gate's own bookkeeping, or
+  that match something no plugin has a legitimate use for (patch size, UTF-8
+  encoding, binary code, native code, checkout filters and LFS, symlinks and
+  submodules, `patterns.HARD_PATH` and executables in any protected path,
+  manifest id, validity, entry points, finding count, an unreadable manifest)
+  are hard. Protected paths some plugins do use (`patterns.DENY_PATH`) stay
+  findings, and so does deleting any protected file. A patch that is not
+  valid UTF-8 is never attached as text by OpenCode, so the reviewer would see
+  no code at all; a file git treats as binary reaches it as "Binary files differ", so a
   binary with a code suffix or name, an entry point, an executable, or
   ELF/native library is hard, while other binaries and assets whose contents
   do not match their type are findings. A `filter` attribute anywhere in the

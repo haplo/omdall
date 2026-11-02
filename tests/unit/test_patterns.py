@@ -26,6 +26,8 @@ from omarchy_plugin_gate import patterns
 )
 def test_denied_paths(path: str) -> None:
     assert patterns.is_denied(path)
+    hard = (".git/", ".ssh/", "authorized_keys", "sudoers")
+    assert patterns.is_hard_path(path) == any(h in path for h in hard)
 
 
 @pytest.mark.parametrize(
@@ -34,6 +36,12 @@ def test_denied_paths(path: str) -> None:
 )
 def test_allowed_paths(path: str) -> None:
     assert not patterns.is_denied(path)
+    assert not patterns.is_hard_path(path)
+
+
+@pytest.mark.parametrize("path", ["sudoers.qml", "authorized_keys.md", "x.ssh/y", "git/config"])
+def test_not_hard_paths(path: str) -> None:
+    assert not patterns.is_hard_path(path)
 
 
 @pytest.mark.parametrize(
