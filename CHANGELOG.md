@@ -34,6 +34,17 @@ All notable changes to omarchy-plugin-gate. The format follows
   nothing is discarded: the merged commit stays, the plugin is disabled (when
   it is the installed copy), and the gate logs `could not roll back … without
   discarding local changes` and sends a `rollback failed` notification.
+- Concurrent runs could mix up the audit trail. The nightly check, a command
+  run by hand and a tripwire hook could run at once, so one run's re-review
+  deleted evidence another was writing, the `held` file raced, and
+  `gate-approved` was moved without checking where it pointed. `add`,
+  `approve`, `check`, `update`, `doctor --fix` and the tripwire now take a lock
+  (`gate.lock` in the state directory); a second run prints `waiting for
+  another run to finish…` and waits. `status`, `doctor` and `approve
+  --dry-run` do not. `gate-approved` moves only if it still points where the
+  run read it (or, for `add`, only if it does not exist yet). The gate's own
+  merges of approved commits no longer start the tripwire, which would have
+  waited for the lock the gate holds.
 
 ## [0.5.0] - 2026-10-31
 

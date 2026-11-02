@@ -3,11 +3,16 @@
 The file formats are shared with earlier releases; keep them readable by both.
 """
 
+import fcntl
 import os
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+from .output import GateError, warn
 
 
 def now() -> str:
@@ -108,6 +113,24 @@ class State:
 
     def plugin_dir(self, name: str) -> Path:
         return self.root / name
+
+    @contextmanager
+    def lock(self, *, wait: bool = True) -> Generator[None]:
+        """One run at a time per state directory, so two runs never write the
+        same evidence, held file or ref. Released when the process exits."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.root / "gate.lock", os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+        try:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                if not wait:
+                    raise GateError("another omarchy-plugin-gate run is in progress") from None
+                warn("waiting for another run to finish…")
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
 
     # -- approvals
 

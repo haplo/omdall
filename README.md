@@ -132,6 +132,14 @@ waived/<sha>                     one-time human approvals (verdict kept)
 held                             the last commit that failed and why
 ```
 
+Runs that write (`add`, `approve`, `check`, `update`, `doctor --fix` and the
+tripwire) take a lock, `gate.lock` in the state directory, so the nightly check,
+a command you run and a hook never write the same evidence at once. A second
+run prints `waiting for another run to finish…` and waits; `status`, `doctor`
+and `approve --dry-run` never wait. `gate-approved` only moves from the commit
+the run read, so it cannot jump over a change made elsewhere. The gate's own
+merges of approved commits do not start the tripwire.
+
 ## Two layers of review
 
 **Structural checks** run first, with no model involved, in two tiers.

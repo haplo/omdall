@@ -120,7 +120,7 @@ def run(ctx: Context, args: ApproveArgs) -> int:
     ctx.state.set_waiver(
         name, sha, user=ctx.cfg.user, reason=reason, base=old or "", patch_blob=patch_blob
     )
-    clone.update_ref(APPROVED_REF, sha)
+    clone.update_ref(APPROVED_REF, sha, old)
     advance_main(clone, sha)
     ensure_hooks(ctx, name)
     ctx.state.log_event(name, f"waived {sha[:12]} by {ctx.cfg.user} reason: {reason or '<none>'}")

@@ -111,14 +111,20 @@ class Repo:
         check: bool = True,
         input: bytes | None = None,
         no_attributes: bool = False,
+        no_hooks: bool = False,
     ) -> proc.Result:
         # Attributes would let the plugin's own .gitattributes mark code as
         # binary (hiding it from the patch) or rewrite archive contents.
         env = {"GIT_ATTR_SOURCE": self.empty_tree} if no_attributes else None
-        return proc.run(["git", "-C", str(self.path), *args], check=check, input=input, env=env)
+        # The gate's own merges are of approved commits; the tripwire they would
+        # start would also wait for the lock this run holds.
+        hooks = ["-c", "core.hooksPath=/dev/null"] if no_hooks else []
+        return proc.run(
+            ["git", "-C", str(self.path), *hooks, *args], check=check, input=input, env=env
+        )
 
-    def ok(self, *args: str, no_attributes: bool = False) -> bool:
-        return self.git(*args, check=False, no_attributes=no_attributes).ok
+    def ok(self, *args: str, no_attributes: bool = False, no_hooks: bool = False) -> bool:
+        return self.git(*args, check=False, no_attributes=no_attributes, no_hooks=no_hooks).ok
 
     def rev(self, ref: str) -> str | None:
         r = self.git("rev-parse", "--verify", "--quiet", "--end-of-options", ref, check=False)
@@ -187,8 +193,10 @@ class Repo:
     def ignored_paths(self) -> list[str]:
         return [path for code, path in self._status("--ignored") if code == "!!"]
 
-    def update_ref(self, ref: str, sha: str) -> None:
-        self.git("update-ref", ref, sha)
+    def update_ref(self, ref: str, sha: str, expected: str | None) -> None:
+        """Move `ref` to `sha` only if it still points at `expected`, or, with
+        None, only if it does not exist yet. Raises CommandError otherwise."""
+        self.git("update-ref", ref, sha, expected or "")
 
     def remote_url(self, name: str = "origin") -> str:
         r = self.git("remote", "get-url", name, check=False)

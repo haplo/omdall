@@ -84,7 +84,9 @@ def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
     say(f"{name}: installing {approved[:12]}")
     # No attributes: a filter driver configured on this machine must not
     # rewrite the reviewed files on their way to disk.
-    merged = installed.git("merge", "--ff-only", "--quiet", new, check=False, no_attributes=True)
+    merged = installed.git(
+        "merge", "--ff-only", "--quiet", new, check=False, no_attributes=True, no_hooks=True
+    )
     if not merged.ok:
         warn(f"{name}: cannot fast-forward (local changes in {idir}){_detail(merged)}")
         return False

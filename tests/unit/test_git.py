@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from omarchy_plugin_gate import proc
 from omarchy_plugin_gate.commands import advance_main
 from omarchy_plugin_gate.git import Repo, parse_numstat_z, parse_raw_z, parse_status_z
 from support import Upstream, git
@@ -172,6 +173,40 @@ def test_advance_main_does_not_run_filters(upstream: Upstream, tmp_path: Path) -
     # The same merge without the gate's protection runs the filter.
     git(clones[1], "merge", "-q", "--ff-only", new)
     assert (clones[1] / "Widget.qml").read_text() == "SMUDGED\n"
+
+
+def test_update_ref_checks_the_old_value(upstream: Upstream) -> None:
+    repo = upstream.repo
+    first = git(upstream.path, "rev-parse", "HEAD")
+    second = upstream.commit("second")
+    repo.update_ref("refs/heads/gate-approved", first, None)
+    with pytest.raises(proc.CommandError):
+        repo.update_ref("refs/heads/gate-approved", second, None)
+    with pytest.raises(proc.CommandError):
+        repo.update_ref("refs/heads/gate-approved", second, second)
+    assert repo.rev("refs/heads/gate-approved") == first
+    repo.update_ref("refs/heads/gate-approved", second, first)
+    assert repo.rev("refs/heads/gate-approved") == second
+
+
+def test_advance_main_does_not_run_hooks(upstream: Upstream, tmp_path: Path) -> None:
+    clone = tmp_path / "gate"
+    git(tmp_path, "clone", "-q", str(upstream.path), str(clone))
+    ran = tmp_path / "hook-ran"
+    hook = clone / ".git" / "hooks" / "post-merge"
+    hook.write_text(f"#!/bin/sh\ntouch '{ran}'\n")
+    hook.chmod(0o755)
+    upstream.write("Widget.qml", "import QtQuick\nItem { width: 2 }\n")
+    new = upstream.commit()
+    git(clone, "fetch", "-q")
+
+    advance_main(Repo(clone), new)
+    assert git(clone, "rev-parse", "HEAD") == new
+    assert not ran.exists()
+    # The hook itself works: a plain merge runs it.
+    git(clone, "reset", "-q", "--hard", "HEAD~1")
+    git(clone, "merge", "-q", "--ff-only", new)
+    assert ran.exists()
 
 
 def test_rev_does_not_take_options(upstream: Upstream) -> None:

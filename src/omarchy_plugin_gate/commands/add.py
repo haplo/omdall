@@ -102,7 +102,7 @@ def run(ctx: Context, args: AddArgs) -> int:
         raise GateError(f"{plugin_id} was not installed")
 
     ctx.state.set_marker(name, head, "initial import")
-    clone.update_ref(APPROVED_REF, head)
+    clone.update_ref(APPROVED_REF, head, None)
     ensure_hooks(ctx, name)
     ncleared = rd.cleared_count()
     if ncleared:

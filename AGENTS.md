@@ -185,7 +185,15 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
 - git goes through `Repo`. Diffs use the fixed `_DIFF_OPTS` and ignore
   `.gitattributes`; file lists come from `-z` output; prefer plumbing over
   porcelain. User-supplied revs go through `Repo.rev`/`Repo.commit`, which add
-  `--end-of-options`.
+  `--end-of-options`. `Repo.update_ref` takes the value the caller read
+  (`None`: the ref must not exist yet), so a ref never moves from a state the
+  run did not see. A merge or checkout the gate runs itself passes
+  `no_hooks=True` as well as `no_attributes=True`.
+- Commands that write state run under `State.lock()`, taken once in
+  `cli.dispatch` (`add`, `approve` without `--dry-run`, `check`, `update`,
+  `doctor --fix`, `_post-merge`). The lock is not reentrant, even within one
+  process: never take it again below `dispatch`, and never let a git command
+  the gate runs under it start a hook (the tripwire would wait for it).
 - Anything from a plugin (paths, manifest values, reviewer text) that lands in
   a line-oriented file, the log or the prompt goes through `output.printable`
   or `state.one_line` first, so it cannot forge extra lines.

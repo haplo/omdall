@@ -61,7 +61,7 @@ def check_one(ctx: Context, name: str, summary: CheckSummary) -> None:
         return
 
     if ctx.state.has_approval(name, head):
-        clone.update_ref(APPROVED_REF, head)
+        clone.update_ref(APPROVED_REF, head, approved)
         advance_main(clone, head)
         _installed_lag(ctx, name, head, summary)
         return
@@ -71,7 +71,7 @@ def check_one(ctx: Context, name: str, summary: CheckSummary) -> None:
         ctx.state.set_marker(name, head, f"update from {base}" if base else "initial import")
         if ctx.state.review_dir(name, head).cleared.is_file():
             summary.cleared.append(name)
-        clone.update_ref(APPROVED_REF, head)
+        clone.update_ref(APPROVED_REF, head, approved)
         advance_main(clone, head)
         ensure_hooks(ctx, name)
         _installed_lag(ctx, name, head, summary)

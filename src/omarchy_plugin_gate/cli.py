@@ -5,6 +5,7 @@ import io
 import os
 import sys
 from collections.abc import Sequence
+from contextlib import nullcontext
 from pathlib import Path
 from typing import NoReturn
 
@@ -50,6 +51,9 @@ usage: omarchy-plugin-gate [options] <command> [command options] [options]
       installed copy is a reviewed commit with no local changes. --fix
       installs missing hooks, but never over a post-merge hook of your own or
       into a core.hooksPath directory.
+
+add, approve, check, update, doctor --fix and the tripwire run one at a time;
+a second run waits for the first to finish.
 
 Options, before or after the command. Each overrides its environment variable:
   --root DIR         OMARCHY_PLUGIN_GATE_ROOT       gate root
@@ -188,7 +192,9 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
         case "_post-merge":
             if len(args) != 2:
                 raise GateError("_post-merge needs a plugin name and a directory")
-            return post_merge.run(_context(self_path, lead), args[0], args[1])
+            ctx = _context(self_path, lead)
+            with ctx.state.lock():
+                return post_merge.run(ctx, args[0], args[1])
         case "_complete":
             # Called on Tab: answer in plain lines, and never print a diagnostic
             # or fail the user's shell, whatever the config says.
@@ -199,36 +205,40 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
         case "add":
             if (ns := _parse(cmd, args)) is None:
                 return 0
-            return add.run(
-                _context(self_path, lead, ns),
-                add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable),
-            )
+            ctx = _context(self_path, lead, ns)
+            with ctx.state.lock():
+                return add.run(ctx, add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable))
         case "approve":
             if (ns := _parse(cmd, args)) is None:
                 return 0
             if ns.name and ns.plugin:
                 raise GateError(f"unexpected argument: {ns.name}")
-            return approve.run(
-                _context(self_path, lead, ns),
-                approve.ApproveArgs(
-                    ns.name or ns.plugin,
-                    sha=ns.sha,
-                    reason=ns.reason,
-                    show=ns.show,
-                    dry_run=ns.dry_run,
-                ),
-            )
+            ctx = _context(self_path, lead, ns)
+            with nullcontext() if ns.dry_run else ctx.state.lock():
+                return approve.run(
+                    ctx,
+                    approve.ApproveArgs(
+                        ns.name or ns.plugin,
+                        sha=ns.sha,
+                        reason=ns.reason,
+                        show=ns.show,
+                        dry_run=ns.dry_run,
+                    ),
+                )
         case "check" | "update" | "status" | "doctor":
             if (ns := _parse(cmd, args)) is None:
                 return 0
             ctx = _context(self_path, lead, ns)
-            if cmd == "check":
-                return check.run(ctx, ns.plugin)
-            if cmd == "update":
-                return update.run(ctx, ns.plugin)
             if cmd == "status":
                 return status.run(ctx, ns.plugin)
-            return doctor.run(ctx, ns.plugin, ns.fix)
+            if cmd == "doctor" and not ns.fix:
+                return doctor.run(ctx, ns.plugin, fix=False)
+            with ctx.state.lock():
+                if cmd == "check":
+                    return check.run(ctx, ns.plugin)
+                if cmd == "update":
+                    return update.run(ctx, ns.plugin)
+                return doctor.run(ctx, ns.plugin, fix=True)
         case _:
             warn(f"unknown command: {cmd}")
             print(USAGE.rstrip("\n"), file=sys.stderr)

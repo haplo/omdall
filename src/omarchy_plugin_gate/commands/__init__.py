@@ -18,7 +18,7 @@ def advance_main(repo: Repo, sha: str) -> None:
         return
     if not repo.is_clean() or not repo.is_ancestor("HEAD", sha):
         return
-    repo.ok("merge", "--ff-only", "--quiet", sha, no_attributes=True)
+    repo.ok("merge", "--ff-only", "--quiet", sha, no_attributes=True, no_hooks=True)
 
 
 def installed_sha(directory: Path | None) -> str | None:

@@ -1,8 +1,15 @@
 import os
 import re
+import subprocess
+import sys
+import threading
 import time
 
+import pytest
+
 from omarchy_plugin_gate.context import Context
+from omarchy_plugin_gate.output import GateError
+from omarchy_plugin_gate.state import State
 
 SHA = "a" * 40
 OTHER = "b" * 40
@@ -86,3 +93,75 @@ def test_cleared_count(ctx: Context) -> None:
     rd.path.mkdir(parents=True)
     rd.cleared.write_text("F1 a\n   cleared: x\nF2 b\n   cleared: y\n")
     assert rd.cleared_count() == 2
+
+
+HOLD_LOCK = """
+import fcntl, os, sys
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT)
+fcntl.flock(fd, fcntl.LOCK_EX)
+print("locked", flush=True)
+sys.stdin.readline()
+"""
+
+
+def hold_lock(ctx: Context) -> subprocess.Popen[str]:
+    """Another process holding the gate's lock until its stdin is closed."""
+    ctx.state.root.mkdir(parents=True, exist_ok=True)
+    holder = subprocess.Popen(
+        [sys.executable, "-c", HOLD_LOCK, str(ctx.state.root / "gate.lock")],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    assert holder.stdout is not None
+    assert holder.stdout.readline() == "locked\n"
+    return holder
+
+
+def release(holder: subprocess.Popen[str]) -> None:
+    assert holder.stdin is not None
+    holder.stdin.close()
+    holder.wait(timeout=10)
+
+
+def test_lock_is_exclusive(ctx: Context) -> None:
+    holder = hold_lock(ctx)
+    busy = pytest.raises(GateError, match="another omarchy-plugin-gate run is in progress")
+    try:
+        with busy, ctx.state.lock(wait=False):
+            pass
+    finally:
+        release(holder)
+    # Two locks in one process conflict too, so a nested run cannot slip in.
+    with (
+        ctx.state.lock(wait=False),
+        pytest.raises(GateError),
+        State(ctx.state.root).lock(wait=False),
+    ):
+        pass
+    with ctx.state.lock(wait=False):
+        pass
+
+
+def test_lock_waits_for_the_other_run(ctx: Context, capsys: pytest.CaptureFixture[str]) -> None:
+    holder = hold_lock(ctx)
+    releaser = threading.Timer(0.3, release, [holder])
+    releaser.start()
+    try:
+        with ctx.state.lock():
+            assert holder.poll() is not None
+    finally:
+        releaser.join()
+    assert "waiting for another run to finish" in capsys.readouterr().err
+
+
+def test_lock_is_not_inherited_by_children(ctx: Context) -> None:
+    # A reviewer left running after a timeout must not keep the gate locked.
+    with ctx.state.lock():
+        child = subprocess.Popen(["sleep", "30"])
+    try:
+        with ctx.state.lock(wait=False):
+            pass
+    finally:
+        child.kill()
+        child.wait()
