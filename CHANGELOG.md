@@ -1,24 +1,24 @@
 # Changelog
 
-All notable changes to omdall (called omarchy-plugin-gate before 0.7.0). The
-format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
-project uses [Semantic Versioning](https://semver.org/).
+All notable changes to omdall. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## 0.7.0 - 2026-11=03
 
 ### Changed
 
-- **Breaking:** the project is now called omdall, with no compatibility for
-  the old name. The command is `omdall`, the variables are `OMDALL_*` (the old
-  `OMARCHY_PLUGIN_GATE_*` ones are ignored), the config file is
-  `~/.config/omdall/config.toml`, the default state is `~/.local/state/omdall`,
-  the reviewer agent is `omdall-reviewer`, and the units are
-  `omdall-check.{service,timer}`. The default root, `~/Work/omarchy-plugins`,
-  is unchanged. To migrate: run the old `scripts/uninstall.sh` first (the new
-  one does not recognise the old hooks), move the repository, config and state
-  directories, rename any variables you export and any `agent =
-  "plugin-reviewer"` line in the config, then run `scripts/install.sh` and
-  `omdall doctor --fix`.
+- **Breaking:** the project is now called omdall, with no compatibility for the
+old name. The command is `omdall`, the variables are `OMDALL_*` (the old
+`OMARCHY_PLUGIN_GATE_*` ones are ignored), the config file is
+`~/.config/omdall/config.toml`, the default state is `~/.local/state/omdall`,
+the reviewer agent is `omdall-reviewer`, and the units are
+`omdall-check.{service,timer}`. The default root, `~/Work/omarchy-plugins`, is
+unchanged. To migrate: run the old `scripts/uninstall.sh` first, **before
+updating to the new version** (the new one does not recognise the old hooks),
+move the repository, config and state directories, rename any variables you
+export and any `agent = "plugin-reviewer"` line in the config to `agent =
+"omdall-reviewer`, then run `scripts/install.sh` and `omdall doctor --fix`.
 
 ### Added
 

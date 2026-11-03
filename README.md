@@ -1,13 +1,16 @@
 # omdall
 
-Review-before-update gate for [Omarchy](https://omarchy.org) shell plugins.
+*omdall* is like a Heimdall for your [Omarchy plugins](https://plugins.omarchy.org/). It will do a thorough AI-powered review before install, but also before updates.
 
-Omarchy plugins are unsandboxed code inside the long-lived `omarchy-shell`
-process. `omarchy plugin update` fast-forwards them from GitHub, which means an
-upstream commit is a code change to a process that already holds your session.
-This gate puts a review step in front of that: upstream changes are fetched and
-reviewed in a clone you own, and the installed plugin can only move to a commit
-that passed.
+Omarchy plugins are unsandboxed code inside your Omarchy session
+(`omarchy-shell``). This means they get full access to your user account, so
+you should be careful about what you run. A regular `omarchy plugin update`
+brings changes directly the plugin repository, so a malicious new change can
+instantly take over your computer.
+
+*omdall* puts a review step in front: plugin changes are first fetched and
+reviewed. The running version of an installed plugins is only updated upon a
+successful review.
 
 ## Requirements
 
@@ -15,7 +18,7 @@ that passed.
   with `omarchy plugin validate`)
 - `python3` 3.14 or newer (Omarchy's system Python) and `git`; the gate uses the
   standard library only, so there is nothing to `pip install`
-- [OpenCode](https://opencode.ai) on `PATH` (the reviewer runs headlessly)
+- [OpenCode](https://opencode.ai) set up (the reviewer runs headlessly)
 
 ## Install
 
@@ -37,36 +40,6 @@ The installation does several things:
    install:no-timer` to skip the timer.
 
 Without mise, [scripts/install.sh](scripts/install.sh) does the same thing.
-
-### Shell completions
-
-`install.sh` links completions for bash, zsh and fish into
-`$XDG_DATA_HOME` (`~/.local/share` when it is unset or not absolute):
-
-| Shell | Path |
-|---|---|
-| bash | `$XDG_DATA_HOME/bash-completion/completions/omdall` |
-| fish | `$XDG_DATA_HOME/fish/vendor_completions.d/omdall.fish` |
-| zsh | `$XDG_DATA_HOME/zsh/site-functions/_omdall` |
-
-bash finds its file through bash-completion, and fish scans
-`vendor_completions.d` itself. zsh has no per-user directory that it scans, so
-add this to `~/.zshrc`, before `compinit`:
-
-```sh
-fpath=(~/.local/share/zsh/site-functions $fpath)
-```
-
-They complete the commands, their options, the plugin names under the gate
-root, and the held commit for `approve --sha`. The root and state come from
-`--root` and `--state` on the line, the environment and the config file, as
-they do for the command. Both `--option value` and `--option=value` work.
-
-Then wire up whatever is already cloned:
-
-```sh
-omdall doctor --fix
-```
 
 ## Quick start
 
@@ -152,6 +125,36 @@ exits 75 instead, having done nothing. `status`, `reviews`, `doctor` and
 `approve --dry-run` never wait. `gate-approved` only moves from the commit
 the run read, so it cannot jump over a change made elsewhere. The gate's own
 merges of approved commits do not start the tripwire.
+
+### Shell completions
+
+`install.sh` links completions for bash, zsh and fish into
+`$XDG_DATA_HOME` (`~/.local/share` when it is unset or not absolute):
+
+| Shell | Path |
+|---|---|
+| bash | `$XDG_DATA_HOME/bash-completion/completions/omdall` |
+| fish | `$XDG_DATA_HOME/fish/vendor_completions.d/omdall.fish` |
+| zsh | `$XDG_DATA_HOME/zsh/site-functions/_omdall` |
+
+bash finds its file through bash-completion, and fish scans
+`vendor_completions.d` itself. zsh has no per-user directory that it scans, so
+add this to `~/.zshrc`, before `compinit`:
+
+```sh
+fpath=(~/.local/share/zsh/site-functions $fpath)
+```
+
+They complete the commands, their options, the plugin names under the gate
+root, and the held commit for `approve --sha`. The root and state come from
+`--root` and `--state` on the line, the environment and the config file, as
+they do for the command. Both `--option value` and `--option=value` work.
+
+Then wire up whatever is already cloned:
+
+```sh
+omdall doctor --fix
+```
 
 ## Scripting and other front ends
 
