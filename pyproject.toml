@@ -12,9 +12,9 @@ dependencies = []
 [dependency-groups]
 # Exact pins live in uv.lock. ty is pre-1.0, so upgrade it deliberately.
 dev = [
-  "pytest>=9.2",
+  "pytest>=9.1",
   "ruff>=0.17",
-  "ty>=0.0.94",
+  "ty>=0.0.92",
 ]
 
 [tool.uv]
