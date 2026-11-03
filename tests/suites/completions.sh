@@ -4,6 +4,8 @@ demo_clone
 mkdir -p "$B/state/demo" "$B/other-root/second"
 printf '0123456789abcdef0123456789abcdef01234567\nwhy\n' >"$B/state/demo/held"
 printf '{"id": "second"}\n' >"$B/other-root/second/manifest.json"
+mkdir -p "$B/cfg/omarchy/plugins/acme.weather"
+printf '{"id": "acme.weather"}\n' >"$B/cfg/omarchy/plugins/acme.weather/manifest.json"
 
 printf '\n== bash completion ==\n'
 # The words after the command, as readline hands them over: --opt=value arrives
@@ -40,6 +42,12 @@ eq 'bash completion offers no second plugin to reviews' "$(bash_complete reviews
 eq 'bash completion offers --json to status' "$(bash_complete status --js)" --json
 eq 'bash completion offers --no-wait to check' "$(bash_complete check --no-w)" --no-wait
 eq 'bash completion offers no --no-wait to status' "$(bash_complete status --no-w)" ''
+eq 'bash completion offers the adopt command' "$(bash_complete ado)" adopt
+eq 'bash completion offers unguarded ids to adopt' "$(bash_complete adopt ac)" acme.weather
+eq 'bash completion offers no second id to adopt' "$(bash_complete adopt acme.weather '')" ''
+eq 'bash completion skips --url when looking for the id' \
+  "$(bash_complete adopt --url https://x/y a)" acme.weather
+eq 'bash completion offers --json to check' "$(bash_complete check --js)" --json
 
 printf '\n== fish completion ==\n'
 if command -v fish >/dev/null 2>&1; then
@@ -65,6 +73,9 @@ if command -v fish >/dev/null 2>&1; then
   eq 'fish completion offers no second plugin to reviews' "$(fish_complete 'reviews demo ')" ''
   eq 'fish completion offers --json to reviews' "$(fish_complete 'reviews --js')" --json
   eq 'fish completion offers --no-wait to update' "$(fish_complete 'update --no-w')" --no-wait
+  eq 'fish completion offers unguarded ids to adopt' "$(fish_complete 'adopt ac')" acme.weather
+  eq 'fish completion offers no second id to adopt' "$(fish_complete 'adopt acme.weather ')" ''
+  eq 'fish completion offers --url to adopt' "$(fish_complete 'adopt --ur')" --url
 else
   ok 'fish completion (skipped: fish not installed)'
 fi

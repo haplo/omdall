@@ -16,7 +16,7 @@ _omdall_cmd() {
   local i
   for ((i = 2; i < CURRENT; i++)); do
     case $words[i] in
-    add | check | approve | update | status | reviews | doctor)
+    add | adopt | check | approve | update | status | reviews | doctor)
       print -r -- $words[i]
       return 0
       ;;
@@ -26,7 +26,7 @@ _omdall_cmd() {
 }
 
 # The plugin named on the line: -p NAME, --plugin NAME or --plugin=NAME, or the
-# positional name after `approve` or `reviews`.
+# positional name or id after `approve`, `reviews` or `adopt`.
 _omdall_plugin() {
   local i word cmd
   for ((i = 2; i < CURRENT; i++)); do
@@ -42,14 +42,14 @@ _omdall_plugin() {
     esac
   done
   cmd=$(_omdall_cmd) || return 0
-  [[ $cmd == approve || $cmd == reviews ]] || return 0
+  [[ $cmd == approve || $cmd == reviews || $cmd == adopt ]] || return 0
   for ((i = 2; i < CURRENT; i++)); do
     [[ $words[i] == $cmd ]] || continue
     for ((i = i + 1; i < CURRENT; i++)); do
       word=$words[i]
       case $word in
-      -p | --plugin | --sha | --reason | --root | --state | --agent | --model | \
-        --notify | --timeout | --max-patch) i=$((i + 1)) ;;
+      -p | --plugin | --sha | --reason | --url | --dir | --root | --state | --agent | \
+        --model | --notify | --timeout | --max-patch) i=$((i + 1)) ;;
       -*) ;;
       *)
         print -r -- $word
@@ -132,7 +132,7 @@ _omdall_complete() {
     _files -/
     return
     ;;
-  --agent | --model | --timeout | --max-patch | --reason | --dir)
+  --agent | --model | --timeout | --max-patch | --reason | --dir | --url)
     return
     ;;
   esac
@@ -141,6 +141,7 @@ _omdall_complete() {
   flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
   case $cmd in
   add) flags+=(--dir --no-enable --no-wait --json) ;;
+  adopt) flags+=(--url --dir --no-wait --json) ;;
   approve) flags+=(-p --plugin --sha --reason --show -n --dry-run --no-wait) ;;
   check | update) flags+=(-p --plugin --no-wait --json) ;;
   status | reviews) flags+=(-p --plugin --json) ;;
@@ -154,9 +155,12 @@ _omdall_complete() {
   fi
 
   if [[ -z $cmd ]]; then
-    compadd -- add check approve update status reviews doctor
+    compadd -- add adopt check approve update status reviews doctor
   elif [[ ($cmd == approve || $cmd == reviews) && -z $name ]]; then
     names=(${(f)"$(_omdall_ask plugins plugins 2>/dev/null)"})
+    [[ -n $names[1] ]] && compadd -a names
+  elif [[ $cmd == adopt && -z $name ]]; then
+    names=(${(f)"$(_omdall_ask unguarded unguarded 2>/dev/null)"})
     [[ -n $names[1] ]] && compadd -a names
   fi
 }

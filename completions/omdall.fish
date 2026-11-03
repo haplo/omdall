@@ -8,7 +8,7 @@
 # tests/unit/test_completions.py fails when they drift apart.
 
 function __omdall_no_command
-    not __fish_seen_subcommand_from add check approve update status reviews doctor
+    not __fish_seen_subcommand_from add adopt check approve update status reviews doctor
 end
 
 # The --root and --state given on the line, so _complete looks where the command
@@ -39,12 +39,20 @@ function __omdall_plugins
     command omdall (__omdall_settings) _complete plugins 2>/dev/null
 end
 
+function __omdall_unguarded
+    command omdall (__omdall_settings) _complete unguarded 2>/dev/null
+end
+
+function __omdall_needs_unguarded
+    __fish_seen_subcommand_from adopt; and test -z "$(__omdall_plugin)"
+end
+
 function __omdall_needs_plugin
     __fish_seen_subcommand_from approve reviews; and test -z "$(__omdall_plugin)"
 end
 
-# The plugin named on the line, from -p/--plugin or, after approve or reviews,
-# the positional name.
+# The plugin named on the line, from -p/--plugin or, after approve, reviews or
+# adopt, the positional name or id.
 function __omdall_plugin
     set -l tokens (commandline -opc)
     for i in (seq (count $tokens) -1 2)
@@ -61,12 +69,13 @@ function __omdall_plugin
     end
     set -l i (contains -i -- approve $tokens)
     test -n "$i"; or set i (contains -i -- reviews $tokens)
+    test -n "$i"; or set i (contains -i -- adopt $tokens)
     test -n "$i"; or return
     set -l j (math $i + 1)
     while test $j -le (count $tokens)
         set -l token $tokens[$j]
-        if contains -- $token -p --plugin --sha --reason --root --state --agent \
-                --model --notify --timeout --max-patch
+        if contains -- $token -p --plugin --sha --reason --url --dir --root --state \
+                --agent --model --notify --timeout --max-patch
             set j (math $j + 2)
             continue
         end
@@ -96,6 +105,7 @@ complete -c omdall -l timeout -x -d 'Reviewer timeout in seconds'
 complete -c omdall -l max-patch -x -d 'Largest diff to review, in bytes'
 
 complete -c omdall -n '__omdall_no_command' -a add -d 'Clone a plugin, review it, install it disabled'
+complete -c omdall -n '__omdall_no_command' -a adopt -d 'Bring an installed plugin under the gate'
 complete -c omdall -n '__omdall_no_command' -a check -d 'Review upstream changes'
 complete -c omdall -n '__omdall_no_command' -a approve -d 'Approve a held candidate by hand'
 complete -c omdall -n '__omdall_no_command' -a update -d 'Install approved commits'
@@ -103,9 +113,11 @@ complete -c omdall -n '__omdall_no_command' -a status -d 'Show installed, approv
 complete -c omdall -n '__omdall_no_command' -a reviews -d 'List the recorded reviews'
 complete -c omdall -n '__omdall_no_command' -a doctor -d 'Verify the wiring'
 
-complete -c omdall -n '__fish_seen_subcommand_from add' -l dir -x -d 'Clone directory name'
+complete -c omdall -n '__fish_seen_subcommand_from add adopt' -l dir -x -d 'Clone directory name'
+complete -c omdall -n '__fish_seen_subcommand_from adopt' -l url -x -d 'Upstream repository'
+complete -c omdall -n '__omdall_needs_unguarded' -a '(__omdall_unguarded)' -d 'Installed plugin'
 complete -c omdall -n '__fish_seen_subcommand_from add' -l no-enable -d 'Do not enable on REVIEW PASS'
-complete -c omdall -n '__fish_seen_subcommand_from add approve check update doctor' -l no-wait -d 'Exit 75 instead of waiting for another run'
+complete -c omdall -n '__fish_seen_subcommand_from add adopt approve check update doctor' -l no-wait -d 'Exit 75 instead of waiting for another run'
 
 complete -c omdall -n '__fish_seen_subcommand_from approve' -s p -l plugin -x -a '(__omdall_plugins)' -d 'Plugin'
 complete -c omdall -n '__fish_seen_subcommand_from approve' -l sha -x -a '(__omdall_shas)' -d 'Held commit'
@@ -115,6 +127,6 @@ complete -c omdall -n '__fish_seen_subcommand_from approve' -s n -l dry-run -d '
 complete -c omdall -n '__omdall_needs_plugin' -a '(__omdall_plugins)' -d 'Plugin'
 
 complete -c omdall -n '__fish_seen_subcommand_from check update status reviews' -s p -l plugin -x -a '(__omdall_plugins)' -d 'Plugin'
-complete -c omdall -n '__fish_seen_subcommand_from add check update status reviews doctor' -l json -d 'Print JSON'
+complete -c omdall -n '__fish_seen_subcommand_from add adopt check update status reviews doctor' -l json -d 'Print JSON'
 complete -c omdall -n '__fish_seen_subcommand_from doctor' -s p -l plugin -x -a '(__omdall_plugins)' -d 'Plugin'
 complete -c omdall -n '__fish_seen_subcommand_from doctor' -l fix -d 'Install missing hooks'

@@ -69,7 +69,8 @@ def test_status_json(
     }
     assert (p["pending"], p["update_blocked"]) == (1, "not_installed")
     assert p["upstream_url"] == str(ctx.clone_dir("demo").parent.parent / "upstream")
-    assert data["features"] == ["activity", "action-json", "attention"]
+    assert data["features"] == ["activity", "action-json", "adopt", "unguarded", "attention"]
+    assert data["unguarded"] == []
     assert data["attention"] == [{"name": "demo", "why": "held"}]
     assert data["activity"] is None
     assert p["waiver"] is None

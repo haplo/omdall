@@ -75,3 +75,11 @@ has "$OMARCHY_LOG" 'plugin enable selftest.fresh --section right' 'fresh: enable
 assert 'fresh: tripwire in the installed copy' test -x "$fidir/.git/hooks/post-merge"
 out=$("$GATE" update -p fresh 2>&1)
 has <(printf '%s' "$out") 'fresh: up to date' 'fresh: second update is a no-op'
+
+printf '\n== add refuses a plugin installed outside the gate ==\n'
+make_upstream listed selftest.listed
+out=$(STUB_PLUGIN_LIST='[{"id": "selftest.listed"}]' "$GATE" add "$B/listed.git" --json 2>"$B/err")
+eq 'already installed: add fails' "$?" 1
+eq 'already installed code' "$(jq -r .code <<<"$out")" already_installed
+has "$B/err" 'omdall adopt selftest.listed' 'add points at adopt'
+refute 'already installed: clone removed' test -e "$B/root/listed"

@@ -12,6 +12,7 @@ from .. import plugins
 from ..context import Context
 from ..output import say
 from ..state import one_line
+from .adopt import unguarded
 
 
 def run(ctx: Context, args: Sequence[str]) -> int:
@@ -20,6 +21,9 @@ def run(ctx: Context, args: Sequence[str]) -> int:
         case "plugins":
             for name in plugins.plugin_names(ctx.cfg):
                 say(one_line(name))
+        case "unguarded":
+            for record in unguarded(ctx):
+                say(one_line(record.id))
         case "held" if len(args) > 1:
             names = [
                 name

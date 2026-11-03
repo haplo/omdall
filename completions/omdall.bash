@@ -66,6 +66,15 @@ _omdall_plugins() { # <prefix>
   done
 }
 
+_omdall_unguarded() { # <prefix>
+  local -a ids
+  local id
+  mapfile -t ids < <("${words[0]}" "${settings[@]}" _complete unguarded 2>/dev/null)
+  for id in "${ids[@]}"; do
+    [[ $id == "$1"* ]] && COMPREPLY+=("$id")
+  done
+}
+
 _omdall_held() { # <prefix> <plugin>
   local -a shas
   local sha
@@ -85,7 +94,7 @@ _omdall_dirs() { # <prefix>
 }
 
 # The plugin named on the line: -p NAME, --plugin NAME or --plugin=NAME, or the
-# positional name after `approve` or `reviews`.
+# positional name or id after `approve`, `reviews` or `adopt`.
 _omdall_plugin() {
   local i word
   for ((i = 1; i < cword; i++)); do
@@ -102,12 +111,12 @@ _omdall_plugin() {
     esac
   done
   for ((i = 1; i < cword; i++)); do
-    [[ ${words[i]} == approve || ${words[i]} == reviews ]] || continue
+    [[ ${words[i]} == approve || ${words[i]} == reviews || ${words[i]} == adopt ]] || continue
     for ((i = i + 1; i < cword; i++)); do
       word=${words[i]}
       case $word in
-      -p | --plugin | --sha | --reason | --root | --state | --agent | --model | \
-        --notify | --timeout | --max-patch) i=$((i + 1)) ;;
+      -p | --plugin | --sha | --reason | --url | --dir | --root | --state | --agent | \
+        --model | --notify | --timeout | --max-patch) i=$((i + 1)) ;;
       -*) ;;
       *)
         printf '%s\n' "$word"
@@ -136,7 +145,7 @@ _omdall() {
   cmd=
   for ((i = 1; i < cword; i++)); do
     case ${words[i]} in
-    add | check | approve | update | status | reviews | doctor)
+    add | adopt | check | approve | update | status | reviews | doctor)
       cmd=${words[i]}
       break
       ;;
@@ -162,7 +171,7 @@ _omdall() {
     _omdall_dirs "$cur"
     return 0
     ;;
-  --agent | --model | --timeout | --max-patch | --reason | --dir)
+  --agent | --model | --timeout | --max-patch | --reason | --dir | --url)
     return 0
     ;;
   esac
@@ -171,6 +180,7 @@ _omdall() {
   flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
   case $cmd in
   add) flags+=(--dir --no-enable --no-wait --json) ;;
+  adopt) flags+=(--url --dir --no-wait --json) ;;
   approve) flags+=(-p --plugin --sha --reason --show -n --dry-run --no-wait) ;;
   check | update) flags+=(-p --plugin --no-wait --json) ;;
   status | reviews) flags+=(-p --plugin --json) ;;
@@ -186,9 +196,11 @@ _omdall() {
   fi
 
   if [[ -z $cmd ]]; then
-    COMPREPLY=($(compgen -W "add check approve update status reviews doctor" -- "$cur"))
+    COMPREPLY=($(compgen -W "add adopt check approve update status reviews doctor" -- "$cur"))
   elif [[ ($cmd == approve || $cmd == reviews) && -z $name ]]; then
     _omdall_plugins "$cur"
+  elif [[ $cmd == adopt && -z $name ]]; then
+    _omdall_unguarded "$cur"
   fi
   return 0
 }

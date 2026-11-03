@@ -3,7 +3,7 @@
 # enough for the gate.
 printf 'omarchy %s\n' "$*" >>"$OMARCHY_LOG"
 case "$1 $2" in
-"plugin list") printf '[]\n' ;;
+"plugin list") printf '%s\n' "${STUB_PLUGIN_LIST:-[]}" ;;
 "plugin validate") jq -e '.schemaVersion == 1' "$3/manifest.json" >/dev/null 2>&1 || exit 1 ;;
 "plugin add")
   src=$3

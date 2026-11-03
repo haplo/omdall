@@ -77,6 +77,15 @@ def url_problem(url: str) -> str | None:
     return f"'{url}' is neither a URL nor an absolute path"
 
 
+def is_local_url(url: str) -> bool:
+    """A path or file:// URL: a repository on this machine, not an upstream."""
+    if m := _SCHEME.match(url):
+        return m.group(1).lower() == "file"
+    if not url or url.startswith("-") or "::" in url:
+        return False
+    return not _SCP_LIKE.fullmatch(url)
+
+
 def check_url(url: str) -> None:
     """Refuse `url` unless it passes the transport policy and Omarchy's own check."""
     if problem := url_problem(url):

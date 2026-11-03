@@ -22,6 +22,15 @@ uses [Semantic Versioning](https://semver.org/).
   plugins that need you, most urgent first (`held`, `never_reviewed`, `ready`,
   `dirty`). Each plugin gains `pending`, `update_blocked`, `upstream_url`, and
   the subject and author of a held commit.
+- `adopt <id> [--url URL] [--dir NAME]` brings a plugin installed with plain
+  `omarchy plugin add` under the gate: it clones the plugin's origin (or
+  `--url`), checks the manifest id, points the installed copy at the clone and
+  reviews upstream's commit. The installed copy keeps its files and commit and
+  stays enabled, also when the review fails; only `update` moves it. A refusal
+  or an error before the review puts the origin back and removes the clone. The
+  previous origin is recorded in `<state>/<name>/adopted`.
+- `status --json` lists installed plugins no clone maps to under `unguarded`,
+  with whether `adopt` can take them and, if not, why.
 
 ### Changed
 
@@ -29,6 +38,10 @@ uses [Semantic Versioning](https://semver.org/).
   `not_installed`, `already_guarded`, `already_installed`, `refused_url`,
   `name_taken`, `id_mismatch`, `config`, or `error` for anything else. An
   unknown plugin used to be `error`; it is now `not_found`.
+- `add` refuses a plugin id that is installed outside the gate with code
+  `already_installed`, removes its fresh clone and points at `adopt`. It used
+  to keep the clone and suggest `check`, which left the installed copy fetching
+  from upstream.
 
 ## 0.7.0 - 2026-11=03
 

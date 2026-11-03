@@ -12,6 +12,7 @@ from ..output import emit_json, indented, info, printable, say
 from ..plugins import public_url, selected_names
 from ..state import Waiver
 from . import installed_sha, path_list
+from .adopt import unguarded
 from .reviews import ReviewRecord, review_record
 
 
@@ -39,7 +40,7 @@ NEXT = {
 
 
 # What this release supports, so a front end can tell an older one apart.
-FEATURES = ("activity", "action-json", "attention")
+FEATURES = ("activity", "action-json", "adopt", "unguarded", "attention")
 
 # Why a plugin needs the user, highest priority first.
 ATTENTION = ("held", "never_reviewed", "ready", "dirty")
@@ -230,6 +231,7 @@ def run(ctx: Context, want: str, *, as_json: bool = False) -> int:
                 "features": list(FEATURES),
                 "activity": for_status(ctx.activity.read(), busy),
                 "attention": [asdict(a) for a in attention(records)],
+                "unguarded": [asdict(u) for u in unguarded(ctx)],
                 "plugins": [asdict(r) for r in records],
             }
         )

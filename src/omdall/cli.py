@@ -11,7 +11,18 @@ from pathlib import Path
 from typing import NoReturn, TextIO
 
 from . import __version__, proc
-from .commands import add, approve, check, complete, doctor, post_merge, reviews, status, update
+from .commands import (
+    add,
+    adopt,
+    approve,
+    check,
+    complete,
+    doctor,
+    post_merge,
+    reviews,
+    status,
+    update,
+)
 from .config import SETTING_FIELDS, Config, Overrides, option_flag
 from .context import Context
 from .notify import CheckSummary
@@ -27,6 +38,13 @@ usage: omdall [options] <command> [command options] [options]
       Clone into the gate root, review the initial tree, install it disabled,
       enable it only on REVIEW PASS. The URL must be https://, ssh://,
       user@host:path, file:// or an absolute path.
+
+  adopt <id> [--url URL] [--dir NAME] [--no-wait] [--json]
+      Bring a plugin installed with omarchy plugin add under the gate: clone
+      its origin (or --url) into the gate root, point the installed copy at
+      the clone, and review upstream's current commit. The installed copy
+      keeps its files and commit, and stays enabled; update moves it.
+      status --json lists the candidates under "unguarded".
 
   check [-p NAME] [--no-wait] [--json]
       Fetch upstream, review new commits, stage approved ones. Never installs.
@@ -61,13 +79,13 @@ usage: omdall [options] <command> [command options] [options]
       installs missing hooks, but never over a post-merge hook of your own or
       into a core.hooksPath directory.
 
-add, approve, check, update, doctor --fix and the tripwire run one at a time;
-a second run waits for the first to finish. With --no-wait it exits 75
-instead, having done nothing. status, reviews, doctor and approve --dry-run
-never wait.
+add, adopt, approve, check, update, doctor --fix and the tripwire run one at
+a time; a second run waits for the first to finish. With --no-wait it exits
+75 instead, having done nothing. status, reviews, doctor and approve
+--dry-run never wait.
 
 --json prints one JSON object on stdout (schema 1; fields are only added).
-With add, check, update and doctor everything else goes to stderr, and the
+With add, adopt, check, update and doctor everything else goes to stderr, and the
 object lists each plugin's outcome, also when the exit status is 1. A refusal
 or a busy lock prints {"schema": 1, "error": ..., "code": ...} on stdout as
 well as the message on stderr. Every run that takes the lock is published in
@@ -92,7 +110,7 @@ the dashes in front: root, state, agent, model, notify, timeout, max-patch.
 """
 
 
-COMMANDS = ("add", "approve", "check", "update", "status", "reviews", "doctor")
+COMMANDS = ("add", "adopt", "approve", "check", "update", "status", "reviews", "doctor")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -160,6 +178,10 @@ def command_parser(prog: str) -> _Parser:
             p.add_argument("url", nargs="?", default="")
             p.add_argument("--dir", default="")
             p.add_argument("--no-enable", action="store_true")
+        case "adopt":
+            p.add_argument("plugin_id", nargs="?", default="")
+            p.add_argument("--url", default="")
+            p.add_argument("--dir", default="")
         case "approve":
             p.add_argument("name", nargs="?", default="")
             _plugin_option(p)
@@ -191,6 +213,7 @@ def _parse(prog: str, args: Sequence[str]) -> argparse.Namespace | None:
         return None
     for flag, attr in (
         ("--dir", "dir"),
+        ("--url", "url"),
         ("-p", "plugin"),
         ("--plugin", "plugin"),
         ("--sha", "sha"),
@@ -265,6 +288,8 @@ def _action(ctx: Context, cmd: str, ns: argparse.Namespace) -> Report:
         match cmd:
             case "add":
                 report = add.run(ctx, add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable))
+            case "adopt":
+                report = adopt.run(ctx, adopt.AdoptArgs(ns.plugin_id, url=ns.url, dir=ns.dir))
             case "check":
                 report = check.run(ctx, ns.plugin)
             case "update":
@@ -327,7 +352,7 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
             with _locked(ctx, cmd, wait=not ns.no_wait) as run:
                 run.exit = approve.run(ctx, approve_args)
                 return run.exit
-        case "add" | "check" | "update" | "doctor":
+        case "add" | "adopt" | "check" | "update" | "doctor":
             as_json = "--json" in args
             with _json_output(as_json) as out:
                 if (ns := _parse(cmd, args)) is None:
