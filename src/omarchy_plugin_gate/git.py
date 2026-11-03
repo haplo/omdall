@@ -40,6 +40,14 @@ class Change:
         return self.new_mode == "100755" and self.old_mode != "100755"
 
 
+@dataclass(frozen=True, slots=True)
+class CommitInfo:
+    sha: str
+    author: str
+    date: str
+    subject: str
+
+
 def parse_raw_z(data: bytes) -> list[tuple[str, str, str, str, str, str | None]]:
     """`git diff --raw -z --no-abbrev` → (status, path, old_mode, new_mode, new_blob, old_path)."""
     out: list[tuple[str, str, str, str, str, str | None]] = []
@@ -276,6 +284,14 @@ class Repo:
     def subject(self, rev: str) -> str:
         r = self.git("log", "-1", "--format=%s", rev, check=False)
         return r.text if r.ok else ""
+
+    def commit_info(self, rev: str) -> CommitInfo | None:
+        r = self.git(
+            "log", "-1", "--no-show-signature", "--format=%H%x00%an%x00%aI%x00%s",
+            "--end-of-options", rev, check=False,
+        )  # fmt: skip
+        parts = r.text.split("\0") if r.ok else []
+        return CommitInfo(*parts) if len(parts) == 4 else None
 
     def log_lines(self, old: str, new: str, fmt: str) -> list[str]:
         r = self.git("log", f"--format={fmt}", f"{old}..{new}", check=False)

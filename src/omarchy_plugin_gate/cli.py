@@ -4,58 +4,71 @@ import argparse
 import io
 import os
 import sys
-from collections.abc import Sequence
-from contextlib import nullcontext
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import NoReturn
 
 from . import __version__, proc
-from .commands import add, approve, check, complete, doctor, post_merge, status, update
+from .commands import add, approve, check, complete, doctor, post_merge, reviews, status, update
 from .config import SETTING_FIELDS, Config, Overrides, option_flag
 from .context import Context
-from .output import GateError, say, warn
+from .output import GateError, emit_json, printable, say, warn
 
 USAGE = """\
 omarchy-plugin-gate — review Omarchy plugin updates before they reach the shell
 
 usage: omarchy-plugin-gate [options] <command> [command options] [options]
 
-  add <git-url> [--dir NAME] [--no-enable]
+  add <git-url> [--dir NAME] [--no-enable] [--no-wait]
       Clone into the gate root, review the initial tree, install it disabled,
       enable it only on REVIEW PASS. The URL must be https://, ssh://,
       user@host:path, file:// or an absolute path.
 
-  check [-p NAME]
+  check [-p NAME] [--no-wait]
       Fetch upstream, review new commits, stage approved ones. Never installs.
       Hard structural failures are held without a model call; other structural
       findings are listed, one per line, and go to the reviewer, which must
       clear each one.
 
-  approve <name> [--sha SHA] [--reason TEXT] [--show] [-n|--dry-run]
+  approve <name> [--sha SHA] [--reason TEXT] [--show] [-n|--dry-run] [--no-wait]
       One-time human approval for a candidate the gate held back. Shows the
       verdict and findings, asks why (the answer may be empty), and advances
       gate-approved. Run update afterwards. --show prints the patch from
       gate-approved to the candidate, with control characters escaped. A
       commit with no review verdict needs --show or --reason.
 
-  update [-p NAME]
+  update [-p NAME] [--no-wait]
       Apply approved commits to ~/.config/omarchy/plugins/<id> and rescan.
       With -p, a plugin that is approved but not installed yet (say, approved
       by hand after add held it back) is installed and enabled. An installed
       copy with modified or untracked files is not updated.
 
-  status [-p NAME]
+  status [-p NAME] [--json]
       What is installed, approved, upstream, and held, plus local changes in
       the installed copy and an installed commit that was never reviewed.
 
-  doctor [-p NAME] [--fix]
+  reviews [<name>] [-p NAME] [--json]
+      The evidence recorded for each candidate, newest first: verdict,
+      reasons, findings, how it was approved, and where the files are.
+
+  doctor [-p NAME] [--fix] [--no-wait]
       Verify the wiring (hooks, origin, refs, reviewer model) and that the
       installed copy is a reviewed commit with no local changes. --fix
       installs missing hooks, but never over a post-merge hook of your own or
       into a core.hooksPath directory.
 
 add, approve, check, update, doctor --fix and the tripwire run one at a time;
-a second run waits for the first to finish.
+a second run waits for the first to finish. With --no-wait it exits 75
+instead, having done nothing. status, reviews, doctor and approve --dry-run
+never wait.
+
+--json prints one JSON object on stdout (schema 1; fields are only added).
+A failure prints {"schema": 1, "error": ..., "code": ...} on stdout as well
+as the message on stderr.
+
+Exit status: 0 done; 1 failed, refused, or found problems; 75 another run
+holds the lock (--no-wait only); 130 interrupted.
 
 Options, before or after the command. Each overrides its environment variable:
   --root DIR         OMARCHY_PLUGIN_GATE_ROOT       gate root
@@ -75,7 +88,7 @@ max-patch.
 """
 
 
-COMMANDS = ("add", "approve", "check", "update", "status", "doctor")
+COMMANDS = ("add", "approve", "check", "update", "status", "reviews", "doctor")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -153,8 +166,15 @@ def command_parser(prog: str) -> _Parser:
         case "doctor":
             _plugin_option(p)
             p.add_argument("--fix", action="store_true")
+        case "reviews":
+            p.add_argument("name", nargs="?", default="")
+            _plugin_option(p)
         case _:
             _plugin_option(p)
+    if prog in ("status", "reviews"):
+        p.add_argument("--json", action="store_true")
+    else:
+        p.add_argument("--no-wait", action="store_true")
     return p
 
 
@@ -174,6 +194,19 @@ def _parse(prog: str, args: Sequence[str]) -> argparse.Namespace | None:
         if flag in args and getattr(ns, attr, None) == "":
             raise GateError(f"{flag} needs a value")
     return ns
+
+
+@contextmanager
+def _json_errors(enabled: bool) -> Generator[None]:
+    """With --json, a failure is also a JSON object on stdout, so a caller that
+    reads stdout never has to parse a message. The error still propagates."""
+    try:
+        yield
+    except (GateError, proc.CommandError) as e:
+        if enabled:
+            code = e.code if isinstance(e, GateError) else "error"
+            emit_json({"error": printable(str(e)), "code": code})
+        raise
 
 
 def _context(self_path: Path, *namespaces: argparse.Namespace) -> Context:
@@ -208,15 +241,25 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
             if (ns := _parse(cmd, args)) is None:
                 return 0
             ctx = _context(self_path, lead, ns)
-            with ctx.state.lock():
+            with ctx.state.lock(wait=not ns.no_wait):
                 return add.run(ctx, add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable))
+        case "status" | "reviews":
+            with _json_errors("--json" in args):
+                if (ns := _parse(cmd, args)) is None:
+                    return 0
+                ctx = _context(self_path, lead, ns)
+                if cmd == "status":
+                    return status.run(ctx, ns.plugin, as_json=ns.json)
+                if ns.name and ns.plugin:
+                    raise GateError(f"unexpected argument: {ns.name}")
+                return reviews.run(ctx, ns.name or ns.plugin, as_json=ns.json)
         case "approve":
             if (ns := _parse(cmd, args)) is None:
                 return 0
             if ns.name and ns.plugin:
                 raise GateError(f"unexpected argument: {ns.name}")
             ctx = _context(self_path, lead, ns)
-            with nullcontext() if ns.dry_run else ctx.state.lock():
+            with nullcontext() if ns.dry_run else ctx.state.lock(wait=not ns.no_wait):
                 return approve.run(
                     ctx,
                     approve.ApproveArgs(
@@ -227,15 +270,13 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
                         dry_run=ns.dry_run,
                     ),
                 )
-        case "check" | "update" | "status" | "doctor":
+        case "check" | "update" | "doctor":
             if (ns := _parse(cmd, args)) is None:
                 return 0
             ctx = _context(self_path, lead, ns)
-            if cmd == "status":
-                return status.run(ctx, ns.plugin)
             if cmd == "doctor" and not ns.fix:
                 return doctor.run(ctx, ns.plugin, fix=False)
-            with ctx.state.lock():
+            with ctx.state.lock(wait=not ns.no_wait):
                 if cmd == "check":
                     return check.run(ctx, ns.plugin)
                 if cmd == "update":
@@ -254,7 +295,7 @@ def main(self_path: Path, argv: Sequence[str] | None = None) -> int:
         return dispatch(self_path, sys.argv[1:] if argv is None else argv)
     except GateError as e:
         warn(str(e))
-        return 1
+        return e.exit_code
     except proc.CommandError as e:
         warn(str(e))
         return 1

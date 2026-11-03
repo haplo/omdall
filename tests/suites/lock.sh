@@ -44,8 +44,34 @@ for cmd in status doctor 'approve demo --dry-run'; do
 done
 out=$(timeout 2 "$GATE" doctor --fix 2>&1)
 eq 'doctor --fix waits' "$?" 124
+busy=$(timeout 10 "$GATE" status --json 2>/dev/null | jq -r .busy)
+eq 'status --json reports the run in progress' "$busy" true
 kill "$holder"
 wait "$holder" 2>/dev/null
+busy=$("$GATE" status --json 2>/dev/null | jq -r .busy)
+eq 'status --json: not busy once it finished' "$busy" false
+
+printf '\n== --no-wait exits 75 and does nothing ==\n'
+base=$(ap)
+commit_upstream 'printf "// no wait\n" >> Widget.qml' 'no wait'
+reviews_before=$(ls "$B/state/demo/reviews" | wc -l)
+n0=$(invocations)
+hold_lock 60
+for cmd in check update 'doctor --fix' 'approve demo --reason x'; do
+  # shellcheck disable=SC2086 # the command and its arguments are split on purpose
+  out=$(timeout 10 "$GATE" $cmd --no-wait 2>&1)
+  eq "$cmd --no-wait exits 75" "$?" 75
+  has <(printf '%s' "$out") 'another omarchy-plugin-gate run is in progress' "$cmd --no-wait says why"
+  refute "$cmd --no-wait did not wait" grep -q 'waiting for another run' <(printf '%s' "$out")
+done
+kill "$holder"
+wait "$holder" 2>/dev/null
+eq 'no-wait: gate-approved unchanged' "$(ap)" "$base"
+eq 'no-wait: no review evidence written' "$(ls "$B/state/demo/reviews" | wc -l)" "$reviews_before"
+eq 'no-wait: reviewer not called' "$(invocations)" "$n0"
+timeout 60 "$GATE" check --no-wait >/dev/null 2>&1
+eq 'check --no-wait runs when the gate is free' "$?" 0
+eq 'check --no-wait reviewed the commit' "$(ap)" "$(upstream_sha)"
 
 printf '\n== the gate'"'"'s own merges skip the tripwire ==\n'
 "$GATE" doctor --fix >/dev/null 2>&1

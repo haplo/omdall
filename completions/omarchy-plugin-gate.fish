@@ -8,7 +8,7 @@
 # tests/unit/test_completions.py fails when they drift apart.
 
 function __omarchy_plugin_gate_no_command
-    not __fish_seen_subcommand_from add check approve update status doctor
+    not __fish_seen_subcommand_from add check approve update status reviews doctor
 end
 
 # The --root and --state given on the line, so _complete looks where the command
@@ -40,11 +40,11 @@ function __omarchy_plugin_gate_plugins
 end
 
 function __omarchy_plugin_gate_needs_plugin
-    __fish_seen_subcommand_from approve; and test -z "$(__omarchy_plugin_gate_plugin)"
+    __fish_seen_subcommand_from approve reviews; and test -z "$(__omarchy_plugin_gate_plugin)"
 end
 
-# The plugin named on the line, from -p/--plugin or, after approve, the
-# positional name.
+# The plugin named on the line, from -p/--plugin or, after approve or reviews,
+# the positional name.
 function __omarchy_plugin_gate_plugin
     set -l tokens (commandline -opc)
     for i in (seq (count $tokens) -1 2)
@@ -60,6 +60,7 @@ function __omarchy_plugin_gate_plugin
         end
     end
     set -l i (contains -i -- approve $tokens)
+    test -n "$i"; or set i (contains -i -- reviews $tokens)
     test -n "$i"; or return
     set -l j (math $i + 1)
     while test $j -le (count $tokens)
@@ -99,10 +100,12 @@ complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a check -
 complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a approve -d 'Approve a held candidate by hand'
 complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a update -d 'Install approved commits'
 complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a status -d 'Show installed, approved and held state'
+complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a reviews -d 'List the recorded reviews'
 complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_no_command' -a doctor -d 'Verify the wiring'
 
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from add' -l dir -x -d 'Clone directory name'
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from add' -l no-enable -d 'Do not enable on REVIEW PASS'
+complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from add approve check update doctor' -l no-wait -d 'Exit 75 instead of waiting for another run'
 
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from approve' -s p -l plugin -x -a '(__omarchy_plugin_gate_plugins)' -d 'Plugin'
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from approve' -l sha -x -a '(__omarchy_plugin_gate_shas)' -d 'Held commit'
@@ -111,6 +114,7 @@ complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from approve' -l show
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from approve' -s n -l dry-run -d 'Show the decision, change nothing'
 complete -c omarchy-plugin-gate -n '__omarchy_plugin_gate_needs_plugin' -a '(__omarchy_plugin_gate_plugins)' -d 'Plugin'
 
-complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from check update status' -s p -l plugin -x -a '(__omarchy_plugin_gate_plugins)' -d 'Plugin'
+complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from check update status reviews' -s p -l plugin -x -a '(__omarchy_plugin_gate_plugins)' -d 'Plugin'
+complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from status reviews' -l json -d 'Print JSON'
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from doctor' -s p -l plugin -x -a '(__omarchy_plugin_gate_plugins)' -d 'Plugin'
 complete -c omarchy-plugin-gate -n '__fish_seen_subcommand_from doctor' -l fix -d 'Install missing hooks'

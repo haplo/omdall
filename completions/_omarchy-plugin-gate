@@ -16,7 +16,7 @@ _omarchy_plugin_gate_cmd() {
   local i
   for ((i = 2; i < CURRENT; i++)); do
     case $words[i] in
-    add | check | approve | update | status | doctor)
+    add | check | approve | update | status | reviews | doctor)
       print -r -- $words[i]
       return 0
       ;;
@@ -26,7 +26,7 @@ _omarchy_plugin_gate_cmd() {
 }
 
 # The plugin named on the line: -p NAME, --plugin NAME or --plugin=NAME, or the
-# positional name after `approve`.
+# positional name after `approve` or `reviews`.
 _omarchy_plugin_gate_plugin() {
   local i word cmd
   for ((i = 2; i < CURRENT; i++)); do
@@ -42,9 +42,9 @@ _omarchy_plugin_gate_plugin() {
     esac
   done
   cmd=$(_omarchy_plugin_gate_cmd) || return 0
-  [[ $cmd == approve ]] || return 0
+  [[ $cmd == approve || $cmd == reviews ]] || return 0
   for ((i = 2; i < CURRENT; i++)); do
-    [[ $words[i] == approve ]] || continue
+    [[ $words[i] == $cmd ]] || continue
     for ((i = i + 1; i < CURRENT; i++)); do
       word=$words[i]
       case $word in
@@ -140,10 +140,11 @@ _omarchy_plugin_gate_complete() {
 
   flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
   case $cmd in
-  add) flags+=(--dir --no-enable) ;;
-  approve) flags+=(-p --plugin --sha --reason --show -n --dry-run) ;;
-  check | update | status) flags+=(-p --plugin) ;;
-  doctor) flags+=(-p --plugin --fix) ;;
+  add) flags+=(--dir --no-enable --no-wait) ;;
+  approve) flags+=(-p --plugin --sha --reason --show -n --dry-run --no-wait) ;;
+  check | update) flags+=(-p --plugin --no-wait) ;;
+  status | reviews) flags+=(-p --plugin --json) ;;
+  doctor) flags+=(-p --plugin --fix --no-wait) ;;
   esac
   [[ -n $cmd ]] || flags+=(--version)
 
@@ -153,8 +154,8 @@ _omarchy_plugin_gate_complete() {
   fi
 
   if [[ -z $cmd ]]; then
-    compadd -- add check approve update status doctor
-  elif [[ $cmd == approve && -z $name ]]; then
+    compadd -- add check approve update status reviews doctor
+  elif [[ ($cmd == approve || $cmd == reviews) && -z $name ]]; then
     names=(${(f)"$(_omarchy_plugin_gate_ask plugins plugins 2>/dev/null)"})
     [[ -n $names[1] ]] && compadd -a names
   fi

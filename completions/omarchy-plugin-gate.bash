@@ -85,7 +85,7 @@ _omarchy_plugin_gate_dirs() { # <prefix>
 }
 
 # The plugin named on the line: -p NAME, --plugin NAME or --plugin=NAME, or the
-# positional name after `approve`.
+# positional name after `approve` or `reviews`.
 _omarchy_plugin_gate_plugin() {
   local i word
   for ((i = 1; i < cword; i++)); do
@@ -102,7 +102,7 @@ _omarchy_plugin_gate_plugin() {
     esac
   done
   for ((i = 1; i < cword; i++)); do
-    [[ ${words[i]} == approve ]] || continue
+    [[ ${words[i]} == approve || ${words[i]} == reviews ]] || continue
     for ((i = i + 1; i < cword; i++)); do
       word=${words[i]}
       case $word in
@@ -136,7 +136,7 @@ _omarchy_plugin_gate() {
   cmd=
   for ((i = 1; i < cword; i++)); do
     case ${words[i]} in
-    add | check | approve | update | status | doctor)
+    add | check | approve | update | status | reviews | doctor)
       cmd=${words[i]}
       break
       ;;
@@ -170,10 +170,11 @@ _omarchy_plugin_gate() {
 
   flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
   case $cmd in
-  add) flags+=(--dir --no-enable) ;;
-  approve) flags+=(-p --plugin --sha --reason --show -n --dry-run) ;;
-  check | update | status) flags+=(-p --plugin) ;;
-  doctor) flags+=(-p --plugin --fix) ;;
+  add) flags+=(--dir --no-enable --no-wait) ;;
+  approve) flags+=(-p --plugin --sha --reason --show -n --dry-run --no-wait) ;;
+  check | update) flags+=(-p --plugin --no-wait) ;;
+  status | reviews) flags+=(-p --plugin --json) ;;
+  doctor) flags+=(-p --plugin --fix --no-wait) ;;
   esac
   [[ -n $cmd ]] || flags+=(--version)
 
@@ -185,8 +186,8 @@ _omarchy_plugin_gate() {
   fi
 
   if [[ -z $cmd ]]; then
-    COMPREPLY=($(compgen -W "add check approve update status doctor" -- "$cur"))
-  elif [[ $cmd == approve && -z $name ]]; then
+    COMPREPLY=($(compgen -W "add check approve update status reviews doctor" -- "$cur"))
+  elif [[ ($cmd == approve || $cmd == reviews) && -z $name ]]; then
     _omarchy_plugin_gate_plugins "$cur"
   fi
   return 0

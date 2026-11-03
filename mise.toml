@@ -40,6 +40,10 @@ run = "bin/omarchy-plugin-gate update"
 description = "Show installed, approved, upstream and held state"
 run = "bin/omarchy-plugin-gate status"
 
+[tasks.reviews]
+description = "List the recorded reviews and their evidence"
+run = "bin/omarchy-plugin-gate reviews"
+
 [tasks.doctor]
 description = "Verify the wiring; pass --fix to install missing hooks"
 run = "bin/omarchy-plugin-gate doctor"

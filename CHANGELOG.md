@@ -4,6 +4,23 @@ All notable changes to omarchy-plugin-gate. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `status --json` and `reviews --json`, a versioned (`"schema": 1`) interface
+  for scripts and graphical front ends, so they never parse text or read the
+  state files. A failure is a JSON object on stdout too, with the message on
+  stderr. `status --json` includes `busy`, whether another run holds the lock.
+- `reviews [<name>]`: every recorded review, newest first, with its verdict,
+  reasons, findings, how it was approved, and the paths of its evidence.
+- `--no-wait` on `add`, `approve`, `check`, `update` and `doctor`: when
+  another run holds the lock, exit 75 at once, having done nothing, instead of
+  waiting. Without it nothing changes; the nightly check and the tripwire
+  always wait.
+- `status` says when another run is in progress.
+- The exit statuses are documented: 0, 1, 75 and 130.
+
 ## [0.6.0] - 2026-11-02
 
 ### Security

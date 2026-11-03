@@ -85,6 +85,9 @@ omarchy-plugin-gate update
 
 # what is installed, approved, upstream, held
 omarchy-plugin-gate status
+
+# every recorded review, newest first, with its evidence
+omarchy-plugin-gate reviews <name>
 ```
 
 A notification appears only when something needs a decision: an update is ready
@@ -144,10 +147,67 @@ held                             the last commit that failed and why
 Runs that write (`add`, `approve`, `check`, `update`, `doctor --fix` and the
 tripwire) take a lock, `gate.lock` in the state directory, so the nightly check,
 a command you run and a hook never write the same evidence at once. A second
-run prints `waiting for another run to finish…` and waits; `status`, `doctor`
-and `approve --dry-run` never wait. `gate-approved` only moves from the commit
+run prints `waiting for another run to finish…` and waits; with `--no-wait` it
+exits 75 instead, having done nothing. `status`, `reviews`, `doctor` and
+`approve --dry-run` never wait. `gate-approved` only moves from the commit
 the run read, so it cannot jump over a change made elsewhere. The gate's own
 merges of approved commits do not start the tripwire.
+
+## Scripting and other front ends
+
+`status --json` and `reviews --json` are the interface for scripts and
+graphical front ends; the state files are not. Each prints one JSON object on
+stdout and nothing else. Every object carries `"schema": 1`; fields are only
+ever added, and a removal or a change of meaning bumps the number. A failure
+prints `{"schema": 1, "error": "…", "code": "…"}` on stdout, the message on
+stderr, and exits 1.
+
+```sh
+omarchy-plugin-gate status --json | jq -r '.plugins[] | "\(.name) \(.state)"'
+omarchy-plugin-gate reviews demo --json | jq '.plugins[0].reviews[0].files'
+```
+
+`status --json` has `version`, `root`, `state`, `busy` and `plugins`. Each
+plugin has:
+
+| Field | Meaning |
+|---|---|
+| `name`, `id` | clone directory under the root, manifest id (`null` when unreadable) |
+| `clone`, `installed_dir`, `branch` | paths and the default branch |
+| `approved`, `installed`, `upstream` | full commit ids, or `null` |
+| `state` | `installed`, `ready to install`, `approved, not installed`, `held back` or `not reviewed yet`, as in `status` |
+| `next` | the command that moves it on: `update`, `approve`, `check`, or `null` |
+| `dirty` | files changed in the installed copy, which stop `update` |
+| `never_reviewed` | the installed commit has neither a review nor a waiver |
+| `waiver` | `{date, user, reason}` when the approved commit was waived by hand |
+| `cleared`, `cleared_file` | findings the reviewer cleared for the approved commit |
+| `held` | `{sha, reasons}` for the commit held back |
+| `latest_review` | the newest review, in the form `reviews` gives |
+
+`reviews [<name>] --json` lists `plugins`, each with `name`, `id` and
+`reviews`, newest first. A review has `short` (its directory name), `sha`,
+`subject`, `author`, `date` (when the verdict was written), `verdict`,
+`passed`, `reasons`, `hard` (structural failures, when the model was never
+asked), `findings` and `cleared` counts, `approval` (`reviewed`, `waived` or
+`null`), `dir`, and `files`: the evidence files that exist, by name (`patch`,
+`review_patch`, `mech`, `findings`, `hints`, `review`, `verdict`, `cleared`).
+
+Text that came from the plugin or the reviewer (subjects, authors, reasons,
+file names) has its control characters escaped, as on the terminal. `busy` says
+whether another run held the lock a moment ago, for display; it can be stale by
+the time you read it, so a script that must not wait passes `--no-wait` to the
+command itself.
+
+| Exit status | Meaning |
+|---|---|
+| `0` | done |
+| `1` | failed, refused, or found problems (`check` with errors, `doctor` with problems) |
+| `75` | another run holds the lock; nothing was done (`--no-wait` only) |
+| `130` | interrupted |
+
+`--no-wait` works on `add`, `approve`, `check`, `update` and `doctor`. The
+nightly check and the tripwire always wait, so neither skips a review because
+something else was running.
 
 ## Two layers of review
 
@@ -408,8 +468,9 @@ mise run test:fixture   # or: tests/run [--keep] [suite ...]
 The unit tests (pytest) cover the pure pieces in isolation: path, danger and
 hint patterns; NUL-separated git parsing with awkward file names; every way a
 reviewer answer can fail to clear a finding or prove it saw the patch; the
-state file formats; the shell completion scripts staying in step with the
-parser; and the fail-closed paths (a git error mid-review, a reviewer that
+state file formats; the `status` and `reviews` records and their JSON; the
+lock's exit status 75 with `--no-wait`; the shell completion scripts staying
+in step with the parser; and the fail-closed paths (a git error mid-review, a reviewer that
 crashes after `REVIEW PASS`, a reviewer that times out and leaves children
 behind).
 
@@ -431,8 +492,10 @@ installed copy with local changes or an unreviewed commit), the tripwire
 rolling back a rejected pull while leaving local commits alone, notification
 policy, one-time approvals (including dry run, `--sha`, `--show`, and the
 resulting update), both `add` outcomes, `add` refusing unsafe URLs before
-cloning, and installing a plugin whose `add`
-review failed once it has been approved by hand. No network, no real plugin install.
+cloning, installing a plugin whose `add`
+review failed once it has been approved by hand, the JSON that `status` and
+`reviews` print (failures included), and `--no-wait` exiting 75 without
+reviewing or moving anything. No network, no real plugin install.
 
 ## Uninstall
 

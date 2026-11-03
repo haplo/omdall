@@ -13,8 +13,8 @@ file is for changing the code.
   `src/` on the import path and calls `cli.main`. Hooks and the systemd unit
   call this exact file, so its path is part of the installed wiring.
 - `src/omarchy_plugin_gate/` — the CLI. Start at `cli.py` (subcommands `add`,
-  `check`, `approve`, `update`, `status`, `doctor`, and the hidden `_post-merge`
-  hook entry point), then:
+  `check`, `approve`, `update`, `status`, `reviews`, `doctor`, and the hidden
+  `_post-merge` hook entry point), then:
   - `config.py` — every setting, read once from the options, the environment
     and the TOML config file (`$XDG_CONFIG_HOME/omarchy-plugin-gate/config.toml`),
     in that order of priority.
@@ -65,7 +65,8 @@ file is for changing the code.
 - `pyproject.toml`, `uv.lock` — development tools (pytest, ruff, ty) and their
   config. There is no build backend: the project is never installed.
 - `mise.toml` — the public task interface: `install`, `uninstall`, `check`,
-  `update`, `status`, `doctor`, `sync`, `test`, `lint`, `fmt`. It pins `uv`.
+  `update`, `status`, `reviews`, `doctor`, `sync`, `test`, `lint`, `fmt`. It
+  pins `uv`.
 
 Runtime dependencies: `python3` 3.14+ (standard library only), `git`, and
 `opencode` and `omarchy` on `PATH` (without `omarchy`, validation fails
@@ -205,7 +206,14 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   with earlier releases; do not change them without a migration.
 - User-facing output goes through `output.say`, `info`, `ok`, `bad`, `warn` and
   `indented`; failures raise `GateError`, which prints
-  `omarchy-plugin-gate: <message>` to stderr and exits 1.
+  `omarchy-plugin-gate: <message>` to stderr and exits with its `exit_code`
+  (1; `Busy`, raised by `State.lock(wait=False)`, is 75).
+- `status --json` and `reviews --json` are the public interface for other
+  programs (a front end, scripts); the state files are not. Their records
+  (`PluginRecord`, `ReviewRecord`) also drive the text output, so the two
+  cannot disagree. JSON goes through `output.emit_json`, which adds
+  `"schema"`; only ever add fields, and bump `JSON_SCHEMA` for a removal or a
+  change of meaning. With `--json` nothing else may reach stdout.
 - Shell (`scripts/`, `tests/`, the hook text) stays bash with
   `set -euo pipefail` and two-space indent. `tests/run` intentionally uses
   `set -uo pipefail` (without `-e`) because it inspects non-zero exits; the

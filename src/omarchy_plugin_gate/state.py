@@ -7,12 +7,12 @@ import fcntl
 import os
 import tempfile
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .output import GateError, warn
+from .output import Busy, warn
 
 
 def now() -> str:
@@ -55,6 +55,24 @@ def read_lines(path: Path) -> list[str]:
 class Held:
     sha: str
     reasons: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class Waiver:
+    date: str
+    user: str
+    reason: str
+
+
+def parse_waiver(lines: list[str]) -> Waiver:
+    """A waiver file: `WAIVED <date> <sha> by <user>`, then `reason: …`. A file
+    that does not parse is still a waiver, with whatever could be read."""
+    head = lines[0].split(" ", 4) if lines else []
+    waived = len(head) >= 3 and head[0] == "WAIVED"
+    date = head[1] if waived else ""
+    user = head[4] if waived and len(head) == 5 and head[3] == "by" else ""
+    reason = next((x.removeprefix("reason: ") for x in lines if x.startswith("reason: ")), "")
+    return Waiver(date, user, reason)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +119,9 @@ class ReviewDir:
     def cleared_count(self) -> int:
         return sum(1 for line in read_lines(self.cleared) if _is_finding_line(line))
 
+    def findings_count(self) -> int:
+        return sum(1 for line in read_lines(self.findings) if _is_finding_line(line))
+
     def reset(self) -> None:
         """A re-review of the same commit must not inherit a previous run's evidence."""
         self.path.mkdir(parents=True, exist_ok=True)
@@ -119,23 +140,44 @@ class State:
     def plugin_dir(self, name: str) -> Path:
         return self.root / name
 
+    @property
+    def lock_file(self) -> Path:
+        return self.root / "gate.lock"
+
     @contextmanager
     def lock(self, *, wait: bool = True) -> Generator[None]:
         """One run at a time per state directory, so two runs never write the
-        same evidence, held file or ref. Released when the process exits."""
+        same evidence, held file or ref. Released when the process exits.
+        Without `wait`, raises Busy when another run has it."""
         self.root.mkdir(parents=True, exist_ok=True)
-        fd = os.open(self.root / "gate.lock", os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+        fd = os.open(self.lock_file, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
         try:
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 if not wait:
-                    raise GateError("another omarchy-plugin-gate run is in progress") from None
+                    raise Busy("another omarchy-plugin-gate run is in progress") from None
                 warn("waiting for another run to finish…")
                 fcntl.flock(fd, fcntl.LOCK_EX)
             yield
         finally:
             os.close(fd)
+
+    def is_busy(self) -> bool:
+        """Whether another run holds the lock right now. A hint for display only:
+        the answer can be stale as soon as it is returned. The probe takes a
+        shared lock for an instant, so probes never make each other busy."""
+        try:
+            fd = os.open(self.lock_file, os.O_RDONLY | os.O_CLOEXEC)
+        except OSError:
+            return False
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        finally:
+            os.close(fd)
+        return False
 
     # -- approvals
 
@@ -188,10 +230,21 @@ class State:
             self.held_file(name).unlink(missing_ok=True)
 
     def waiver_reason(self, name: str, sha: str) -> str:
-        for line in read_lines(self.waiver(name, sha)):
-            if line.startswith("reason: "):
-                return line.removeprefix("reason: ")
-        return ""
+        record = self.waiver_record(name, sha)
+        return record.reason if record else ""
+
+    def waiver_record(self, name: str, sha: str) -> Waiver | None:
+        if not self.has_waiver(name, sha):
+            return None
+        return parse_waiver(read_lines(self.waiver(name, sha)))
+
+    def approved_shas(self, name: str) -> list[str]:
+        """Every commit with a review marker or a waiver."""
+        found: set[str] = set()
+        for sub in ("reviewed", "waived"):
+            with suppress(OSError):
+                found.update(p.name for p in (self.plugin_dir(name) / sub).iterdir() if p.is_file())
+        return sorted(found)
 
     # -- held candidates
 
@@ -214,14 +267,18 @@ class State:
     def review_dir(self, name: str, sha: str) -> ReviewDir:
         return ReviewDir(self.plugin_dir(name) / "reviews" / sha[:12])
 
-    def latest_review_dir(self, name: str) -> ReviewDir | None:
+    def review_dirs(self, name: str) -> list[ReviewDir]:
+        """Every candidate's evidence, newest first."""
         try:
             dirs = [p for p in (self.plugin_dir(name) / "reviews").iterdir() if p.is_dir()]
         except OSError:
-            return None
-        if not dirs:
-            return None
-        return ReviewDir(max(dirs, key=lambda p: (p.stat().st_mtime_ns, p.name)))
+            return []
+        dirs.sort(key=lambda p: (p.stat().st_mtime_ns, p.name), reverse=True)
+        return [ReviewDir(p) for p in dirs]
+
+    def latest_review_dir(self, name: str) -> ReviewDir | None:
+        dirs = self.review_dirs(name)
+        return dirs[0] if dirs else None
 
     # -- log and notification id
 

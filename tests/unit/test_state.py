@@ -8,8 +8,8 @@ import time
 import pytest
 
 from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.output import GateError
-from omarchy_plugin_gate.state import State, one_line, read_lines
+from omarchy_plugin_gate.output import EXIT_BUSY, Busy, GateError
+from omarchy_plugin_gate.state import State, one_line, parse_waiver, read_lines
 
 SHA = "a" * 40
 OTHER = "b" * 40
@@ -35,9 +35,57 @@ def test_waiver_format(ctx: Context) -> None:
     assert re.fullmatch(rf"WAIVED {STAMP} {SHA} by me", lines[0])
     assert lines[1:] == ["reason: checked it myself", f"base: {OTHER}", f"patch-blob: {'c' * 40}"]
     assert ctx.state.waiver_reason("demo", SHA) == "checked it myself"
+    record = ctx.state.waiver_record("demo", SHA)
+    assert record is not None
+    assert (record.user, record.reason) == ("me", "checked it myself")
+    assert re.fullmatch(STAMP, record.date)
     assert ctx.state.held("demo") is None
     assert ctx.state.has_approval("demo", SHA)
     assert not ctx.state.has_marker("demo", SHA)
+    assert ctx.state.waiver_record("demo", OTHER) is None
+
+
+DATE = "2026-01-01T00:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    ("lines", "expected"),
+    [
+        ([f"WAIVED {DATE} {SHA} by a b", "reason: r"], (DATE, "a b", "r")),
+        ([f"WAIVED {DATE} {SHA}"], (DATE, "", "")),
+        (["garbage", "reason: still read"], ("", "", "still read")),
+        ([], ("", "", "")),
+    ],
+)
+def test_parse_waiver(lines: list[str], expected: tuple[str, str, str]) -> None:
+    w = parse_waiver(lines)
+    assert (w.date, w.user, w.reason) == expected
+
+
+def test_approved_shas(ctx: Context) -> None:
+    assert ctx.state.approved_shas("demo") == []
+    ctx.state.set_marker("demo", OTHER, "x")
+    ctx.state.set_waiver("demo", SHA, user="me", reason="", base="", patch_blob="")
+    ctx.state.set_marker("demo", SHA, "x")
+    assert ctx.state.approved_shas("demo") == [SHA, OTHER]
+
+
+def test_review_dirs_newest_first(ctx: Context) -> None:
+    assert ctx.state.review_dirs("demo") == []
+    old, new = ctx.state.review_dir("demo", SHA), ctx.state.review_dir("demo", OTHER)
+    old.path.mkdir(parents=True)
+    new.path.mkdir(parents=True)
+    os.utime(old.path, (1, 1))
+    assert ctx.state.review_dirs("demo") == [new, old]
+    assert ctx.state.latest_review_dir("demo") == new
+
+
+def test_findings_count(ctx: Context) -> None:
+    rd = ctx.state.review_dir("demo", SHA)
+    rd.path.mkdir(parents=True)
+    assert rd.findings_count() == 0
+    rd.findings.write_text("F1 a\nF2 b\n")
+    assert rd.findings_count() == 2
 
 
 def test_waiver_records_different_evidence(ctx: Context) -> None:
@@ -177,6 +225,31 @@ def test_lock_is_exclusive(ctx: Context) -> None:
         State(ctx.state.root).lock(wait=False),
     ):
         pass
+    with ctx.state.lock(wait=False):
+        pass
+
+
+def test_busy_lock_exits_75(ctx: Context) -> None:
+    holder = hold_lock(ctx)
+    try:
+        with pytest.raises(Busy) as err, ctx.state.lock(wait=False):
+            pass
+    finally:
+        release(holder)
+    assert (err.value.exit_code, err.value.code) == (EXIT_BUSY, "busy") == (75, "busy")
+    assert GateError().exit_code == 1
+
+
+def test_is_busy(ctx: Context) -> None:
+    assert not ctx.state.is_busy()
+    assert not ctx.state.root.exists(), "probing must not create the state directory"
+    holder = hold_lock(ctx)
+    try:
+        assert ctx.state.is_busy()
+    finally:
+        release(holder)
+    assert not ctx.state.is_busy()
+    # A probe holds nothing afterwards, and probes do not block each other.
     with ctx.state.lock(wait=False):
         pass
 

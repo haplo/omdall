@@ -34,6 +34,12 @@ eq 'bash completion expands ~ in --root' \
 eq 'bash completion offers no second plugin to approve' "$(bash_complete approve demo '')" ''
 eq 'bash completion offers --version before the command' "$(bash_complete --ver)" --version
 eq 'bash completion offers no --version after the command' "$(bash_complete status --ver)" ''
+eq 'bash completion offers the reviews command' "$(bash_complete rev)" reviews
+eq 'bash completion offers plugin names to reviews' "$(bash_complete reviews de)" demo
+eq 'bash completion offers no second plugin to reviews' "$(bash_complete reviews demo '')" ''
+eq 'bash completion offers --json to status' "$(bash_complete status --js)" --json
+eq 'bash completion offers --no-wait to check' "$(bash_complete check --no-w)" --no-wait
+eq 'bash completion offers no --no-wait to status' "$(bash_complete status --no-w)" ''
 
 printf '\n== fish completion ==\n'
 if command -v fish >/dev/null 2>&1; then
@@ -55,6 +61,10 @@ if command -v fish >/dev/null 2>&1; then
   eq 'fish completion uses --root from the line' \
     "$(fish_complete "--root $B/other-root status -p ")" second
   eq 'fish completion offers no --version after the command' "$(fish_complete 'status --ver')" ''
+  eq 'fish completion offers plugin names to reviews' "$(fish_complete 'reviews de')" demo
+  eq 'fish completion offers no second plugin to reviews' "$(fish_complete 'reviews demo ')" ''
+  eq 'fish completion offers --json to reviews' "$(fish_complete 'reviews --js')" --json
+  eq 'fish completion offers --no-wait to update' "$(fish_complete 'update --no-w')" --no-wait
 else
   ok 'fish completion (skipped: fish not installed)'
 fi

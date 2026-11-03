@@ -1,12 +1,35 @@
 """User-facing output. Diagnostics go to stderr with the command name."""
 
+import json
 import sys
+from typing import Any
 
 PREFIX = "omarchy-plugin-gate"
 
+# Version of the --json output. Fields are only ever added; a removal or a
+# change of meaning bumps it.
+JSON_SCHEMA = 1
+
+EXIT_BUSY = 75  # sysexits EX_TEMPFAIL: nothing ran, try again later
+
 
 class GateError(Exception):
-    """A user-facing failure: printed with the prefix, exit status 1."""
+    """A user-facing failure: printed with the prefix, exit status `exit_code`.
+    `code` names the kind of failure in --json output."""
+
+    exit_code = 1
+    code = "error"
+
+
+class Busy(GateError):
+    """Another run holds the state lock and this one was told not to wait."""
+
+    exit_code = EXIT_BUSY
+    code = "busy"
+
+
+def emit_json(value: dict[str, Any]) -> None:
+    print(json.dumps({"schema": JSON_SCHEMA, **value}, ensure_ascii=False, indent=2))
 
 
 def say(msg: str = "") -> None:
