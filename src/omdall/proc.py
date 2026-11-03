@@ -126,6 +126,21 @@ def run_quiet(argv: Sequence[str], *, cwd: Path | None = None) -> bool:
         return False
 
 
+# less without anything the text could use against the terminal or the user:
+# no raw control characters (-R is never given, and LESS replaces the user's
+# options), no shell escapes, editor or input preprocessor. -F quits at once when
+# the text fits, -X leaves it on the screen, -K quits on Ctrl-C.
+PAGER_ENV = {"LESS": "-FXK", "LESSSECURE": "1", "LESSOPEN": "", "LESSCLOSE": ""}
+
+
+def page(text: bytes, out: IO[bytes]) -> bool:
+    """Show `text` in less on `out`, a terminal. False when there is no less."""
+    if which("less") is None:
+        return False
+    run(["less"], check=False, input=text, env=PAGER_ENV, stdout=out, stderr=out)
+    return True
+
+
 @dataclass(frozen=True, slots=True)
 class Supervised:
     returncode: int

@@ -3,7 +3,7 @@
 import sys
 from dataclasses import dataclass
 
-from .. import mechanics
+from .. import mechanics, proc
 from ..config import APPROVED_REF
 from ..context import Context
 from ..hooks import ensure_hooks
@@ -11,6 +11,14 @@ from ..output import GateError, indented, info, printable, safe_text, say, warn
 from ..plugins import selected_names
 from ..state import one_line, read_lines
 from . import advance_main
+
+
+def _page(text: str) -> bool:
+    """Page `text` when stdout is a terminal; False when it was not paged."""
+    if not sys.stdout.isatty():
+        return False
+    sys.stdout.flush()
+    return proc.page(text.encode("utf-8", "surrogateescape"), sys.stdout.buffer)
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +55,23 @@ def run(ctx: Context, args: ApproveArgs) -> int:
     if upstream and not clone.is_ancestor(sha, upstream):
         raise GateError(f"{name}: {sha[:12]} is not reachable from origin/{branch} — refusing")
 
+    # What this approval lets through is the diff from where gate-approved is
+    # now, which is not necessarily what the recorded review covered.
     rd = ctx.state.review_dir(name, sha)
+    old = clone.rev(APPROVED_REF)
+    fresh = clone.diff(old or clone.empty_tree, sha)
+    stored = rd.patch.read_bytes() if rd.patch.is_file() else None
+    # The patch is the plugin author's bytes: escape control characters so it
+    # cannot rewrite the screen or reach the terminal's clipboard.
+    shown = [
+        f"--- patch {old[:12] if old else '(empty tree)'}..{sha[:12]} ---",
+        safe_text(fresh.decode("utf-8", "replace").removesuffix("\n")),
+        "--- end patch ---",
+    ]
+    # In a terminal, read the diff first, in a pager; the verdict and the
+    # question come after it, where they stay on the screen.
+    paged = args.show and _page("\n".join(shown) + "\n")
+
     say(f"{name}: candidate {sha[:12]}")
     verdict = rd.verdict_lines()
     if verdict:
@@ -74,24 +98,16 @@ def run(ctx: Context, args: ApproveArgs) -> int:
             info(f"held      {printable(reasons[0])}")
             indented(reasons[1:])
 
-    # What this approval lets through is the diff from where gate-approved is
-    # now, which is not necessarily what the recorded review covered.
-    old = clone.rev(APPROVED_REF)
-    fresh = clone.diff(old or clone.empty_tree, sha)
-    stored = rd.patch.read_bytes() if rd.patch.is_file() else None
     if stored != fresh:
         warn(
             f"{name}: the recorded review covered a different diff than this approval "
             "(base moved or evidence missing)"
         )
 
-    if args.show:
+    if args.show and not paged:
         say()
-        say(f"--- patch {old[:12] if old else '(empty tree)'}..{sha[:12]} ---")
-        # The patch is the plugin author's bytes: escape control characters so
-        # it cannot rewrite the screen or reach the terminal's clipboard.
-        say(safe_text(fresh.decode("utf-8", "replace").removesuffix("\n")))
-        say("--- end patch ---")
+        for line in shown:
+            say(line)
 
     if old == sha and ctx.state.has_approval(name, sha):
         say(f"{name}: {sha[:12]} is already approved; nothing to do")

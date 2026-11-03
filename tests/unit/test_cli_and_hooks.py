@@ -1,3 +1,4 @@
+import io
 import subprocess
 from pathlib import Path
 
@@ -468,3 +469,54 @@ def test_doctor_reports_omarchy(
 def test_post_merge_needs_a_name_and_a_directory(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(LAUNCHER, ["--root", "/r", "_post-merge", "/x"]) == 1
     assert "_post-merge needs a plugin name and a directory" in capsys.readouterr().err
+
+
+def test_add_without_a_url_or_terminal_errors(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    args = ["--root", str(tmp_path / "root"), "--state", str(tmp_path / "state"), "add"]
+    assert cli.main(LAUNCHER, args) == 1
+    assert "add needs a git URL" in capsys.readouterr().err
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_add_asks_for_the_url_on_a_terminal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sys.stdin", _Tty("http://example.invalid/x\n"))
+    args = ["--root", str(tmp_path / "root"), "--state", str(tmp_path / "state"), "add"]
+    assert cli.main(LAUNCHER, args) == 1
+    err = capsys.readouterr().err
+    assert "Git URL: " in err
+    assert "'http://example.invalid/x' uses http://" in err
+
+
+def test_interrupted_approve_leaves_no_waiver(
+    ctx: Context,
+    upstream: Upstream,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ctx.cfg.root.mkdir(parents=True)
+    git(upstream.path.parent, "clone", "-q", str(upstream.path), str(ctx.clone_dir("demo")))
+    head = ctx.clone("demo").head()
+    assert head
+    ctx.state.record_held("demo", head, "held for the test")
+    rd = ctx.state.review_dir("demo", head)
+    rd.path.mkdir(parents=True)
+    rd.verdict.write_text("REVIEW FAIL\nno\n")
+
+    class Interrupting(_Tty):
+        def readline(self, size: int = -1) -> str:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr("sys.stdin", Interrupting())
+    args = ["--root", str(ctx.cfg.root), "--state", str(ctx.state.root), "approve", "demo"]
+    assert cli.main(LAUNCHER, [*args, "--show"]) == 130
+    assert not ctx.state.has_waiver("demo", head)
+    assert "--- patch (empty tree)" in capsys.readouterr().out, "no pager without a terminal"

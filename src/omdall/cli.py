@@ -37,7 +37,8 @@ usage: omdall [options] <command> [command options] [options]
   add <git-url> [--dir NAME] [--no-enable] [--no-wait] [--json]
       Clone into the gate root, review the initial tree, install it disabled,
       enable it only on REVIEW PASS. The URL must be https://, ssh://,
-      user@host:path, file:// or an absolute path.
+      user@host:path, file:// or an absolute path. Without one, add asks for
+      it on a terminal.
 
   adopt <id> [--url URL] [--dir NAME] [--no-wait] [--json]
       Bring a plugin installed with omarchy plugin add under the gate: clone
@@ -57,7 +58,8 @@ usage: omdall [options] <command> [command options] [options]
       verdict and findings, asks why (the answer may be empty), and advances
       gate-approved. Run update afterwards. --show prints the patch from
       gate-approved to the candidate, with control characters escaped. A
-      commit with no review verdict needs --show or --reason.
+      commit with no review verdict needs --show or --reason. On a terminal,
+      --show pages the patch through less first.
 
   update [-p NAME] [--no-wait] [--json]
       Apply approved commits to ~/.config/omarchy/plugins/<id> and rescan.
@@ -286,9 +288,24 @@ def _locked(ctx: Context, command: str, *, wait: bool = True) -> Generator[_Run]
             ctx.activity.finish(run.exit, run.summary)
 
 
+def _ask_url() -> str:
+    """The URL for add, asked for on a terminal; "" without one, which add refuses."""
+    if not sys.stdin.isatty():
+        return ""
+    print("Git URL: ", end="", file=sys.stderr, flush=True)
+    line = sys.stdin.readline()
+    if not line:
+        print(file=sys.stderr)
+        raise GateError("add cancelled")
+    return line.strip()
+
+
 def _action(ctx: Context, cmd: str, ns: argparse.Namespace) -> Report:
     if cmd == "doctor" and not ns.fix:
         return doctor.run(ctx, ns.plugin, fix=False)
+    if cmd == "add" and not ns.url:
+        # Before the lock: nobody waits while a person types.
+        ns.url = _ask_url()
     with _locked(ctx, cmd, wait=not ns.no_wait) as run:
         match cmd:
             case "add":
