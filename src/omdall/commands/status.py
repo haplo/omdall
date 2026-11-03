@@ -4,11 +4,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .. import __version__
+from ..activity import for_status
 from ..config import APPROVED_REF
 from ..context import Context
 from ..git import Repo
 from ..output import emit_json, indented, info, printable, say
-from ..plugins import selected_names
+from ..plugins import public_url, selected_names
 from ..state import Waiver
 from . import installed_sha, path_list
 from .reviews import ReviewRecord, review_record
@@ -37,10 +38,25 @@ NEXT = {
 }
 
 
+# What this release supports, so a front end can tell an older one apart.
+FEATURES = ("activity", "action-json", "attention")
+
+# Why a plugin needs the user, highest priority first.
+ATTENTION = ("held", "never_reviewed", "ready", "dirty")
+
+
 @dataclass(frozen=True, slots=True)
 class HeldRecord:
     sha: str
     reasons: list[str]
+    subject: str | None = None
+    author: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Attention:
+    name: str
+    why: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +78,53 @@ class PluginRecord:
     cleared_file: str | None
     held: HeldRecord | None
     latest_review: ReviewRecord | None
+    pending: int | None
+    update_blocked: str | None
+    upstream_url: str | None
+
+
+def update_blocked(
+    approved: str | None, approved_ok: bool, installed: str | None, exists: bool, dirty: bool
+) -> str | None:
+    """Why `update` would not move this plugin forward, or None. A plugin that
+    is already at the approved commit is not blocked: there is nothing to do."""
+    if not approved or not approved_ok:
+        return "no_approval"
+    if not exists:
+        return "not_installed"
+    if installed == approved:
+        return None
+    return "dirty" if dirty else None
+
+
+def attention_of(r: PluginRecord) -> str | None:
+    """The most urgent reason this plugin needs the user, if any."""
+    if r.state == "held back":
+        return "held"
+    if r.never_reviewed:
+        return "never_reviewed"
+    if r.state in ("ready to install", "approved, not installed"):
+        return "ready"
+    if r.dirty:
+        return "dirty"
+    return None
+
+
+def attention(records: list[PluginRecord]) -> list[Attention]:
+    """One entry per plugin that needs the user, most urgent first."""
+    found = [(why, r.name) for r in records if (why := attention_of(r))]
+    found.sort(key=lambda item: (ATTENTION.index(item[0]), item[1]))
+    return [Attention(name, why) for why, name in found]
+
+
+def _held_record(clone: Repo, sha: str, reasons: list[str]) -> HeldRecord:
+    commit = clone.commit_info(sha) if clone.commit(sha) else None
+    return HeldRecord(
+        printable(sha),
+        [printable(r) for r in reasons],
+        subject=printable(commit.subject) if commit else None,
+        author=printable(commit.author) if commit else None,
+    )
 
 
 def plugin_record(ctx: Context, name: str) -> PluginRecord:
@@ -81,6 +144,9 @@ def plugin_record(ctx: Context, name: str) -> PluginRecord:
         dirty = [printable(p) for p in Repo(idir).dirty_paths()]
         never_reviewed = not ctx.state.has_approval(name, inst)
     waiver = ctx.state.waiver_record(name, approved) if approved else None
+    exists = bool(idir and idir.is_dir())
+    pending = clone.count(approved, upstream) if approved and upstream else None
+    origin = clone.remote_url()
     cleared_rd = ctx.state.review_dir(name, approved) if approved else None
     has_cleared = bool(cleared_rd and cleared_rd.cleared.is_file())
     latest = ctx.state.latest_review_dir(name)
@@ -100,12 +166,19 @@ def plugin_record(ctx: Context, name: str) -> PluginRecord:
         waiver=waiver,
         cleared=cleared_rd.cleared_count() if cleared_rd and has_cleared else 0,
         cleared_file=str(cleared_rd.cleared) if cleared_rd and has_cleared else None,
-        held=HeldRecord(printable(held.sha), [printable(r) for r in held.reasons])
-        if held
-        else None,
+        held=_held_record(clone, held.sha, held.reasons) if held else None,
         latest_review=review_record(ctx, name, clone, latest, ctx.state.approved_shas(name))
         if latest
         else None,
+        pending=pending,
+        update_blocked=update_blocked(
+            approved,
+            bool(approved) and ctx.state.has_approval(name, approved or ""),
+            inst,
+            exists,
+            bool(dirty),
+        ),
+        upstream_url=printable(public_url(origin)) if origin else None,
     )
 
 
@@ -154,6 +227,9 @@ def run(ctx: Context, want: str, *, as_json: bool = False) -> int:
                 "root": str(ctx.cfg.root),
                 "state": str(ctx.state.root),
                 "busy": busy,
+                "features": list(FEATURES),
+                "activity": for_status(ctx.activity.read(), busy),
+                "attention": [asdict(a) for a in attention(records)],
                 "plugins": [asdict(r) for r in records],
             }
         )

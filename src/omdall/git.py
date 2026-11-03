@@ -293,6 +293,16 @@ class Repo:
         parts = r.text.split("\0") if r.ok else []
         return CommitInfo(*parts) if len(parts) == 4 else None
 
+    def count(self, old: str, new: str) -> int | None:
+        """How many commits are in `old..new`, or None when git cannot tell."""
+        r = self.git("rev-list", "--count", f"{old}..{new}", check=False)
+        return int(r.text) if r.ok and r.text.isdigit() else None
+
+    def config_get(self, key: str) -> str:
+        """One value from this repository's config, or "" when it is unset."""
+        r = self.git("config", "--get", key, check=False)
+        return r.text if r.ok else ""
+
     def log_lines(self, old: str, new: str, fmt: str) -> list[str]:
         r = self.git("log", f"--format={fmt}", f"{old}..{new}", check=False)
         return r.text.splitlines() if r.ok and r.text else []

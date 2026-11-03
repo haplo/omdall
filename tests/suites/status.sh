@@ -28,6 +28,13 @@ eq 'reviewed commit' "$(jq -r '.plugins[0].never_reviewed' <<<"$out")" false
 eq 'latest review passed' "$(jq -r '.plugins[0].latest_review.passed' <<<"$out")" true
 eq 'latest review approval' "$(jq -r '.plugins[0].latest_review.approval' <<<"$out")" reviewed
 assert 'latest review patch exists' test -f "$(jq -r '.plugins[0].latest_review.files.patch' <<<"$out")"
+assert 'features' jq -e '.features | index("attention") and index("activity")' <<<"$out" >/dev/null
+eq 'nothing needs attention' "$(jq -c .attention <<<"$out")" '[]'
+eq 'nothing pending' "$(jq -r '.plugins[0].pending' <<<"$out")" 0
+eq 'update not blocked' "$(jq -r '.plugins[0].update_blocked' <<<"$out")" null
+eq 'upstream url' "$(jq -r '.plugins[0].upstream_url' <<<"$out")" "$B/upstream.git"
+eq 'activity recorded' "$(jq -r '.activity.last_run.command' <<<"$out")" check
+eq 'no run in progress' "$(jq -r '.activity.running' <<<"$out")" null
 
 printf '\n== status --json, held and dirty ==\n'
 commit_upstream 'printf "// NEEDS-JSON-HOLD\n" >> Widget.qml' 'hold for json'
@@ -43,6 +50,10 @@ eq 'latest review is the held one' "$(jq -r '.plugins[0].latest_review.sha' <<<"
 eq 'latest review failed' "$(jq -r '.plugins[0].latest_review.verdict' <<<"$out")" 'REVIEW FAIL'
 eq 'latest review subject' "$(jq -r '.plugins[0].latest_review.subject' <<<"$out")" 'hold for json'
 eq 'dirty file listed' "$(jq -r '.plugins[0].dirty[0]' <<<"$out")" scratch.txt
+eq 'held needs attention' "$(jq -c .attention <<<"$out")" '[{"name":"demo","why":"held"}]'
+eq 'one commit pending' "$(jq -r '.plugins[0].pending' <<<"$out")" 1
+eq 'held subject' "$(jq -r '.plugins[0].held.subject' <<<"$out")" 'hold for json'
+eq 'held author' "$(jq -r '.plugins[0].held.author' <<<"$out")" 'gate test'
 rm "$idir/scratch.txt"
 
 printf '\n== reviews ==\n'
@@ -58,6 +69,11 @@ eq 'waived review' "$(jq -r '.plugins[0].reviews[0].approval' <<<"$out")" waived
 out=$("$GATE" status --json 2>/dev/null)
 eq 'waiver reason' "$(jq -r '.plugins[0].waiver.reason' <<<"$out")" 'json waiver'
 eq 'ready to install' "$(jq -r '.plugins[0].next' <<<"$out")" update
+eq 'ready needs attention' "$(jq -r '.attention[0].why' <<<"$out")" ready
+printf 'scratch\n' >"$idir/scratch.txt"
+out=$("$GATE" status --json 2>/dev/null)
+eq 'dirty blocks update' "$(jq -r '.plugins[0].update_blocked' <<<"$out")" dirty
+rm "$idir/scratch.txt"
 out=$("$GATE" reviews demo 2>&1)
 has <(printf '%s' "$out") 'approved by hand (waived)' 'reviews text names the waiver'
 has <(printf '%s' "$out") 'hold for json' 'reviews text shows the subject'

@@ -11,7 +11,7 @@ from omdall.commands import check
 from omdall.context import Context
 from omdall.notify import CheckSummary
 from omdall.output import GateError
-from omdall.results import Report
+from omdall.results import PluginResult, Report
 from test_state import hold_lock, release
 
 LAUNCHER = Path(__file__).parents[2] / "bin" / "omdall"
@@ -183,4 +183,4 @@ def test_check_reports_each_plugin(ctx: Context, monkeypatch: pytest.MonkeyPatch
     )
     report = check.run(ctx, "")
     assert phases == [("fetching", "a", 1, 2), ("fetching", "b", 2, 2)]
-    assert [r.outcome for r in report.results] == ["error", "error"]
+    assert [r.outcome for r in report.results if isinstance(r, PluginResult)] == ["error", "error"]

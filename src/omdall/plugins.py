@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -88,3 +89,12 @@ def same_path(a: str | Path, b: str | Path, base: Path | None = None) -> bool:
             return False
         pa = base / pa
     return os.path.realpath(pa) == os.path.realpath(b)
+
+
+_USERINFO = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#]*@")
+
+
+def public_url(url: str) -> str:
+    """`url` without the user and password of a scheme URL, for display: an
+    https URL may carry a token. A user@host:path address keeps its user name."""
+    return _USERINFO.sub(r"\1", url)

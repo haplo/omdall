@@ -17,6 +17,11 @@ uses [Semantic Versioning](https://semver.org/).
   its phase (`fetching`, `checking`, `reviewing`, …) and its end there, and
   bumps `seq` on every write. It also keeps the last run and the last check.
   It is display data: nothing in the gate reads it to decide anything.
+- `status --json` reports `features`, the contents of `activity.json` (with
+  `running` shown only while a run holds the lock), and `attention`: the
+  plugins that need you, most urgent first (`held`, `never_reviewed`, `ready`,
+  `dirty`). Each plugin gains `pending`, `update_blocked`, `upstream_url`, and
+  the subject and author of a held commit.
 
 ### Changed
 
