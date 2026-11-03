@@ -4,8 +4,9 @@ Review-before-update gate for Omarchy shell plugins. The core invariant: an
 installed plugin may only move to a commit that passed structural checks and a
 read-only model review. Everything here is the machinery for that promise.
 
-Read `README.md` for the user-facing model (paths, state layout, settings). This
-file is for changing the code.
+Read `README.md` and `docs/` for the user-facing model (`docs/how-it-works.md`
+for paths, state layout and the tripwire; `docs/review.md` for the checks;
+`docs/configuration.md` for settings). This file is for changing the code.
 
 ## Layout
 
@@ -47,6 +48,8 @@ file is for changing the code.
   plugin names and the held commit. A new command or option goes into all
   three; `tests/unit/test_completions.py` fails otherwise, and `mise run lint`
   syntax-checks the files when zsh and fish are installed.
+- `docs/` — user documentation, one page per topic; `README.md` stays short
+  and links there.
 - `config.example.toml` — every setting commented out at its default. A unit
   test uncomments it and checks the result equals the built-in defaults.
 - `systemd/` — nightly `check` service and timer. `%h` paths are rewritten by
@@ -222,16 +225,18 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   `--<name>`, the variable `OMDALL_<NAME>` and the config file key
   `<name>` (dashes, like the option); the option wins over the variable, which
   wins over the file. It gets a default in `Config.from_env`, a commented-out
-  line at that default in `config.example.toml`, a row in the README settings
-  table, a line in `cli.USAGE`, and an entry in the option list of all three
-  completion scripts. There are no unprefixed aliases.
+  line at that default in `config.example.toml`, a row in the settings table
+  in `docs/configuration.md`, a line in `cli.USAGE`, and an entry in the
+  option list of all three completion scripts. There are no unprefixed
+  aliases.
 - Unit tests must never read the developer's config file: `conftest.py` points
   `XDG_CONFIG_HOME` at a scratch directory, and tests that build an environment
   by hand should set it too.
-- A user-visible change touches all three: `cli.USAGE`, `README.md`, and a
-  test. For a release, bump `__version__` in
-  `src/omdall/__init__.py` and `version` in `pyproject.toml` (a
-  unit test checks they match), and add a `CHANGELOG.md` entry.
+- A user-visible change touches all three: `cli.USAGE`, the docs
+  (`README.md` or the matching page in `docs/`), and a test. For a release,
+  bump `__version__` in `src/omdall/__init__.py` and `version` in
+  `pyproject.toml` (a unit test checks they match), and add a `CHANGELOG.md`
+  entry.
 - Style: direct, lowercase commands, plain prose, no filler. Emit `✓`/`✗` only
   through the existing helpers.
 - Keep the diff focused. The user's working clones, state directory, and
