@@ -2,7 +2,7 @@
 
 import json
 import sys
-from typing import Any
+from typing import Any, TextIO
 
 PREFIX = "omdall"
 
@@ -28,8 +28,60 @@ class Busy(GateError):
     code = "busy"
 
 
-def emit_json(value: dict[str, Any]) -> None:
-    print(json.dumps({"schema": JSON_SCHEMA, **value}, ensure_ascii=False, indent=2))
+class ConfigError(GateError):
+    """A setting is invalid: the config file, a variable or an option."""
+
+    code = "config"
+
+
+class NotFound(GateError):
+    """No plugin under the gate root by that name or id."""
+
+    code = "not_found"
+
+
+class NotInstalled(GateError):
+    """The plugin has no installed copy."""
+
+    code = "not_installed"
+
+
+class AlreadyGuarded(GateError):
+    """A clone under the gate root already maps to this plugin id."""
+
+    code = "already_guarded"
+
+
+class AlreadyInstalled(GateError):
+    """The plugin id is installed, but not under the gate: adopt it instead."""
+
+    code = "already_installed"
+
+
+class RefusedUrl(GateError):
+    """The git URL fails the transport policy."""
+
+    code = "refused_url"
+
+
+class NameTaken(GateError):
+    """The clone directory already exists under the gate root."""
+
+    code = "name_taken"
+
+
+class IdMismatch(GateError):
+    """The clone's manifest id is not the installed plugin's id."""
+
+    code = "id_mismatch"
+
+
+def emit_json(value: dict[str, Any], file: TextIO | None = None) -> None:
+    print(
+        json.dumps({"schema": JSON_SCHEMA, **value}, ensure_ascii=False, indent=2),
+        file=file or sys.stdout,
+        flush=True,
+    )
 
 
 def say(msg: str = "") -> None:

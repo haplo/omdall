@@ -65,7 +65,7 @@ has <(printf '%s' "$out") 'hold for json' 'reviews text shows the subject'
 printf '\n== failures are JSON too ==\n'
 out=$("$GATE" status -p nope --json 2>"$B/status.err")
 eq 'unknown plugin exits 1' "$?" 1
-eq 'error code' "$(jq -r .code <<<"$out")" error
+eq 'error code' "$(jq -r .code <<<"$out")" not_found
 has <(jq -r .error <<<"$out") "no plugin named 'nope'" 'error message'
 has "$B/status.err" "no plugin named 'nope'" 'message on stderr too'
 out=$("$GATE" reviews nope --json 2>/dev/null)

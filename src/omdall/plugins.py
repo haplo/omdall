@@ -7,7 +7,7 @@ from typing import Any
 
 from .config import APPROVED_REF, Config
 from .git import Repo
-from .output import GateError
+from .output import NotFound
 from .patterns import valid_plugin_id
 
 
@@ -68,7 +68,7 @@ def selected_names(cfg: Config, want: str) -> list[str]:
         return names
     found = [n for n in names if want in (n, manifest_id(cfg, n))]
     if not found:
-        raise GateError(f"no plugin named '{want}' under {cfg.root}")
+        raise NotFound(f"no plugin named '{want}' under {cfg.root}")
     return found
 
 

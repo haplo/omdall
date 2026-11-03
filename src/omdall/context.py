@@ -1,9 +1,10 @@
-"""What every command needs: settings and the state directory."""
+"""What every command needs: settings, the state directory, and its activity."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
 from . import plugins
+from .activity import Activity
 from .config import Config
 from .git import Repo
 from .state import State
@@ -13,10 +14,11 @@ from .state import State
 class Context:
     cfg: Config
     state: State
+    activity: Activity
 
     @classmethod
     def create(cls, cfg: Config) -> Context:
-        return cls(cfg, State(cfg.state_root))
+        return cls(cfg, State(cfg.state_root), Activity(cfg.state_root))
 
     def clone_dir(self, name: str) -> Path:
         return plugins.clone_dir(self.cfg, name)
@@ -29,3 +31,14 @@ class Context:
 
     def installed_dir(self, name: str) -> Path | None:
         return plugins.installed_dir(self.cfg, name)
+
+    def progress(
+        self,
+        phase: str,
+        plugin: str | None = None,
+        index: int | None = None,
+        total: int | None = None,
+    ) -> None:
+        """Tell activity.json what the locked run is doing; a no-op otherwise."""
+        timeout = self.cfg.review_timeout if phase == "reviewing" else None
+        self.activity.progress(phase, plugin, index, total, timeout)

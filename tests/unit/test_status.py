@@ -136,7 +136,7 @@ def test_json_error_on_stdout(ctx: Context, capsys: pytest.CaptureFixture[str]) 
     captured = capsys.readouterr()
     data = json.loads(captured.out)
     assert data["schema"] == 1
-    assert data["code"] == "error"
+    assert data["code"] == "not_found"
     assert "no plugin named 'missing'" in data["error"]
     assert captured.err.startswith("omdall: no plugin named")
 
@@ -188,3 +188,31 @@ def test_no_wait_is_harmless_where_nothing_waits(
     finally:
         release(holder)
     assert "in progress" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["check", "update", "doctor"])
+def test_action_json_keeps_stdout_for_the_object(
+    ctx: Context,
+    command: str,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ctx.cfg.root.mkdir(parents=True)
+    monkeypatch.setattr(proc, "which", lambda _name: None)
+    args = ["--root", str(ctx.cfg.root), "--state", str(ctx.state.root), command, "--json"]
+    code = cli.main(LAUNCHER, args)
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert (data["schema"], data["command"], data["ok"]) == (1, command, code == 0)
+    assert data["results"] == [] or command == "doctor"
+    assert captured.err
+
+
+def test_action_json_busy(ctx: Context, capsys: pytest.CaptureFixture[str]) -> None:
+    holder = hold_lock(ctx)
+    try:
+        args = ["--root", str(ctx.cfg.root), "--state", str(ctx.state.root)]
+        assert cli.main(LAUNCHER, [*args, "check", "--no-wait", "--json"]) == EXIT_BUSY
+    finally:
+        release(holder)
+    assert json.loads(capsys.readouterr().out)["code"] == "busy"

@@ -4,6 +4,27 @@ All notable changes to omdall. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- `--json` on `add`, `check`, `update` and `doctor`, for front ends. Everything
+  else the command prints goes to stderr, and stdout gets one object with each
+  plugin's outcome (`results`) and, for `check` and `add`, the summary. It is
+  printed also when the exit status is 1 because a plugin failed.
+- `<state>/activity.json`, the one file a front end needs to watch. Every run
+  that takes the lock, the tripwire and `approve` included, publishes its start,
+  its phase (`fetching`, `checking`, `reviewing`, …) and its end there, and
+  bumps `seq` on every write. It also keeps the last run and the last check.
+  It is display data: nothing in the gate reads it to decide anything.
+
+### Changed
+
+- A JSON failure's `code` now names the kind of failure: `busy`, `not_found`,
+  `not_installed`, `already_guarded`, `already_installed`, `refused_url`,
+  `name_taken`, `id_mismatch`, `config`, or `error` for anything else. An
+  unknown plugin used to be `error`; it is now `not_found`.
+
 ## 0.7.0 - 2026-11=03
 
 ### Changed

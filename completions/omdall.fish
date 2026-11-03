@@ -115,6 +115,6 @@ complete -c omdall -n '__fish_seen_subcommand_from approve' -s n -l dry-run -d '
 complete -c omdall -n '__omdall_needs_plugin' -a '(__omdall_plugins)' -d 'Plugin'
 
 complete -c omdall -n '__fish_seen_subcommand_from check update status reviews' -s p -l plugin -x -a '(__omdall_plugins)' -d 'Plugin'
-complete -c omdall -n '__fish_seen_subcommand_from status reviews' -l json -d 'Print JSON'
+complete -c omdall -n '__fish_seen_subcommand_from add check update status reviews doctor' -l json -d 'Print JSON'
 complete -c omdall -n '__fish_seen_subcommand_from doctor' -s p -l plugin -x -a '(__omdall_plugins)' -d 'Plugin'
 complete -c omdall -n '__fish_seen_subcommand_from doctor' -l fix -d 'Install missing hooks'

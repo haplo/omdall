@@ -23,6 +23,7 @@ def review(ctx: Context, name: str, clone: Repo, old: str | None, new: str) -> b
 
 
 def _review(ctx: Context, name: str, clone: Repo, old: str | None, new: str, rd: ReviewDir) -> bool:
+    ctx.progress("checking", name)
     base = old or clone.empty_tree
     patch = clone.diff(base, new)
     write_atomic(rd.patch, patch)
@@ -58,6 +59,7 @@ def _review(ctx: Context, name: str, clone: Repo, old: str | None, new: str, rd:
             hints=hints,
         )
     )
+    ctx.progress("reviewing", name)
     run = reviewer.run(ctx.cfg, rd, prompt)
     output = reviewer.clean_output(rd.review.read_bytes())
     decision = reviewer.decide(output, run.returncode, code, mech.findings, timed_out=run.timed_out)

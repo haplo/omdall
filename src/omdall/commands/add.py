@@ -10,9 +10,23 @@ from ..config import APPROVED_REF
 from ..context import Context
 from ..hooks import ensure_hooks
 from ..install import echo, install_new
-from ..notify import notify
-from ..output import GateError, indented, info, printable, say
+from ..notify import CheckSummary, notify
+from ..output import (
+    AlreadyGuarded,
+    AlreadyInstalled,
+    GateError,
+    NameTaken,
+    RefusedUrl,
+    indented,
+    info,
+    printable,
+    say,
+    warn,
+)
+from ..plugins import plugin_names
+from ..results import PluginResult, Report
 from ..review import review
+from .check import held_message
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,15 +77,16 @@ def url_problem(url: str) -> str | None:
     return f"'{url}' is neither a URL nor an absolute path"
 
 
-def _check_url(url: str) -> None:
+def check_url(url: str) -> None:
+    """Refuse `url` unless it passes the transport policy and Omarchy's own check."""
     if problem := url_problem(url):
-        raise GateError(problem)
+        raise RefusedUrl(problem)
     # Omarchy's own check, the one `omarchy plugin add` runs, when it is there.
     if proc.which("omarchy-git-url-check"):
         result = proc.run(["omarchy-git-url-check", url], check=False)
         if not result.ok:
             echo(result)
-            raise GateError(f"omarchy-git-url-check refused '{url}'")
+            raise RefusedUrl(f"omarchy-git-url-check refused '{url}'")
 
 
 def clone_name(url: str, override: str = "") -> str:
@@ -82,6 +97,46 @@ def clone_name(url: str, override: str = "") -> str:
     if name.startswith("."):
         raise GateError(f"refusing a name starting with a dot: {name}")
     return name
+
+
+def clone_plugin(ctx: Context, url: str, name: str) -> str:
+    """Clone `url` into the gate root as `name`, and return its manifest id.
+    The clone is removed again unless it is a valid plugin."""
+    clone_dir = ctx.clone_dir(name)
+    ctx.cfg.root.mkdir(parents=True, exist_ok=True)
+    say(f"Cloning {url} into {clone_dir}")
+    ctx.progress("fetching", name)
+    # The allow-list also holds if the user's config enables more protocols or a
+    # url.insteadOf rewrites the URL.
+    result = proc.run(
+        ["git", "clone", "--quiet", "--", url, str(clone_dir)],
+        check=False,
+        env={"GIT_ALLOW_PROTOCOL": GIT_ALLOW_PROTOCOL},
+    )
+    if not result.ok:
+        echo(result)
+        raise GateError("clone failed")
+
+    plugin_id = ctx.manifest_id(name)
+    if not plugin_id:
+        shutil.rmtree(clone_dir)
+        raise GateError("no manifest.json id at the repository root; not a plugin")
+
+    ctx.progress("validating", name)
+    result = proc.run(["omarchy", "plugin", "validate", str(clone_dir)], check=False)
+    if not result.ok:
+        shutil.rmtree(clone_dir)
+        echo(result)
+        raise GateError("manifest validation failed; clone removed")
+    return plugin_id
+
+
+def guarded_by(ctx: Context, plugin_id: str, *, besides: str = "") -> str | None:
+    """The clone, other than `besides`, whose manifest id is `plugin_id`."""
+    return next(
+        (n for n in plugin_names(ctx.cfg) if n != besides and ctx.manifest_id(n) == plugin_id),
+        None,
+    )
 
 
 def _already_installed(plugin_id: str) -> bool:
@@ -97,45 +152,35 @@ def _already_installed(plugin_id: str) -> bool:
     )
 
 
-def run(ctx: Context, args: AddArgs) -> int:
-    _check_url(args.url)
+def run(ctx: Context, args: AddArgs) -> Report:
+    check_url(args.url)
     name = clone_name(args.url, args.dir)
     clone_dir = ctx.clone_dir(name)
     if clone_dir.exists():
-        raise GateError(
+        raise NameTaken(
             f"'{name}' already exists at {clone_dir} — review it with: "
             f"omdall check -p {name}, install it with: "
             f"omdall update -p {name}"
         )
 
-    ctx.cfg.root.mkdir(parents=True, exist_ok=True)
-    say(f"Cloning {args.url} into {clone_dir}")
-    # The allow-list also holds if the user's config enables more protocols or a
-    # url.insteadOf rewrites the URL.
-    result = proc.run(
-        ["git", "clone", "--quiet", "--", args.url, str(clone_dir)],
-        check=False,
-        env={"GIT_ALLOW_PROTOCOL": GIT_ALLOW_PROTOCOL},
-    )
-    if not result.ok:
-        echo(result)
-        raise GateError("clone failed")
-
-    plugin_id = ctx.manifest_id(name)
-    if not plugin_id:
-        shutil.rmtree(clone_dir)
-        raise GateError("no manifest.json id at the repository root; not a plugin")
-
-    result = proc.run(["omarchy", "plugin", "validate", str(clone_dir)], check=False)
-    if not result.ok:
-        shutil.rmtree(clone_dir)
-        echo(result)
-        raise GateError("manifest validation failed; clone removed")
-
+    plugin_id = clone_plugin(ctx, args.url, name)
     if _already_installed(plugin_id):
-        raise GateError(
-            f"plugin id '{plugin_id}' is already installed — use: omdall check -p {name}"
+        shutil.rmtree(clone_dir)
+        if other := guarded_by(ctx, plugin_id, besides=name):
+            raise AlreadyGuarded(
+                f"plugin id '{plugin_id}' is already installed and guarded as '{other}' — "
+                f"use: omdall check -p {other}"
+            )
+        raise AlreadyInstalled(
+            f"plugin id '{plugin_id}' is already installed — bring it under the gate with: "
+            f"omdall adopt {plugin_id}"
         )
+
+    summary = CheckSummary()
+
+    def report(outcome: str, sha: str, message: str | None = None, cleared: int = 0) -> Report:
+        result = PluginResult(name, plugin_id, outcome, sha, message, cleared)
+        return Report("add", 0 if outcome.startswith("installed") else 1, [result], summary)
 
     clone = ctx.clone(name)
     head = clone.head()
@@ -154,22 +199,29 @@ def run(ctx: Context, args: AddArgs) -> int:
         info(
             f"after reading it, to install anyway: omdall approve {name} && omdall update -p {name}"
         )
-        raise GateError(f"{plugin_id} was not installed")
+        warn(f"{plugin_id} was not installed")
+        summary.held.append(name)
+        return report("held", head, held_message(ctx, name, head))
 
     ctx.state.set_marker(name, head, "initial import")
     clone.update_ref(APPROVED_REF, head, None)
     ensure_hooks(ctx, name)
     ncleared = rd.cleared_count()
     if ncleared:
+        summary.cleared.append(name)
         info(f"the reviewer cleared {ncleared} structural finding(s): {rd.cleared}")
 
     say(f"Installing {plugin_id}")
+    ctx.progress("installing", name)
     if not install_new(ctx, name, head, enable_after=args.enable):
         notify(ctx, f"{plugin_id}: install failed", f"The clone is kept at {clone_dir}.")
-        raise GateError(
+        message = (
             f"{plugin_id} was not installed; the clone is kept at {clone_dir} "
             f"(retry with: omdall update -p {name})"
         )
+        warn(message)
+        summary.errors.append(name)
+        return report("error", head, printable(message), ncleared)
 
     suffix = (
         f" The reviewer cleared {ncleared} structural finding(s); check status." if ncleared else ""
@@ -182,4 +234,4 @@ def run(ctx: Context, args: AddArgs) -> int:
     say(f"Done. {plugin_id} at {head[:12]} (installed from the reviewed clone)")
     info(f"upstream clone: {clone_dir}")
     info(f"review: {rd.path}")
-    return 0
+    return report("installed" if args.enable else "installed_disabled", head, cleared=ncleared)

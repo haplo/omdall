@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from pathlib import Path
 
-from .output import GateError
+from .output import ConfigError
 
 APPROVED_REF = "refs/heads/gate-approved"
 
@@ -74,15 +74,15 @@ def _file_value(key: str, value: object, home: Path, path: Path) -> str:
     if field in _INT_FIELDS:
         # bool is an int to Python, but `timeout = true` is not a number.
         if not isinstance(value, int) or isinstance(value, bool):
-            raise GateError(f"{key} in {path} must be a whole number")
+            raise ConfigError(f"{key} in {path} must be a whole number")
         return str(value)
     if not isinstance(value, str):
-        raise GateError(f"{key} in {path} must be a string")
+        raise ConfigError(f"{key} in {path} must be a string")
     if field in _PATH_FIELDS and value:
         if value == "~" or value.startswith("~/"):
             value = str(home / value[2:])
         if not Path(value).is_absolute():
-            raise GateError(f"{key} in {path} must be an absolute path or start with ~/")
+            raise ConfigError(f"{key} in {path} must be an absolute path or start with ~/")
     return value
 
 
@@ -92,12 +92,12 @@ def parse_config(text: str, path: Path, home: Path) -> ConfigFile:
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise GateError(f"{path} is not valid TOML: {e}") from None
+        raise ConfigError(f"{path} is not valid TOML: {e}") from None
     known = {config_key(f) for f in SETTING_FIELDS}
     values: dict[str, str] = {}
     for key, value in data.items():
         if key not in known:
-            raise GateError(f"unknown setting '{key}' in {path}")
+            raise ConfigError(f"unknown setting '{key}' in {path}")
         if text_value := _file_value(key, value, home, path):
             values[key.replace("-", "_")] = text_value
     return ConfigFile(path, values)
@@ -110,9 +110,9 @@ def load_config(path: Path, home: Path) -> ConfigFile:
     except FileNotFoundError:
         return ConfigFile(path, {})
     except UnicodeDecodeError:
-        raise GateError(f"{path} is not valid UTF-8") from None
+        raise ConfigError(f"{path} is not valid UTF-8") from None
     except OSError as e:
-        raise GateError(f"cannot read {path}: {e.strerror or e}") from None
+        raise ConfigError(f"cannot read {path}: {e.strerror or e}") from None
     return parse_config(text, path, home)
 
 
@@ -146,7 +146,7 @@ def _positive_int(raw: str, source: str, default: int, what: str) -> int:
     except ValueError:
         value = 0
     if value <= 0:
-        raise GateError(f"{source} must be a positive whole number of {what}, not '{raw}'")
+        raise ConfigError(f"{source} must be a positive whole number of {what}, not '{raw}'")
     return value
 
 
@@ -204,7 +204,7 @@ class Config:
         notify, notify_source = _setting(over, env, file, "notify")
         notify = notify or "all"
         if notify not in NOTIFY_POLICIES:
-            raise GateError(
+            raise ConfigError(
                 f"{notify_source} must be one of {', '.join(NOTIFY_POLICIES)}, not '{notify}'"
             )
         timeout, timeout_source = _setting(over, env, file, "timeout")

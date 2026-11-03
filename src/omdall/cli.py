@@ -5,27 +5,30 @@ import io
 import os
 import sys
 from collections.abc import Generator, Sequence
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager, nullcontext, redirect_stdout
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, TextIO
 
 from . import __version__, proc
 from .commands import add, approve, check, complete, doctor, post_merge, reviews, status, update
 from .config import SETTING_FIELDS, Config, Overrides, option_flag
 from .context import Context
+from .notify import CheckSummary
 from .output import GateError, emit_json, printable, say, warn
+from .results import Report
 
 USAGE = """\
 omdall — review Omarchy plugin updates before they reach the shell
 
 usage: omdall [options] <command> [command options] [options]
 
-  add <git-url> [--dir NAME] [--no-enable] [--no-wait]
+  add <git-url> [--dir NAME] [--no-enable] [--no-wait] [--json]
       Clone into the gate root, review the initial tree, install it disabled,
       enable it only on REVIEW PASS. The URL must be https://, ssh://,
       user@host:path, file:// or an absolute path.
 
-  check [-p NAME] [--no-wait]
+  check [-p NAME] [--no-wait] [--json]
       Fetch upstream, review new commits, stage approved ones. Never installs.
       Hard structural failures are held without a model call; other structural
       findings are listed, one per line, and go to the reviewer, which must
@@ -38,7 +41,7 @@ usage: omdall [options] <command> [command options] [options]
       gate-approved to the candidate, with control characters escaped. A
       commit with no review verdict needs --show or --reason.
 
-  update [-p NAME] [--no-wait]
+  update [-p NAME] [--no-wait] [--json]
       Apply approved commits to ~/.config/omarchy/plugins/<id> and rescan.
       With -p, a plugin that is approved but not installed yet (say, approved
       by hand after add held it back) is installed and enabled. An installed
@@ -52,7 +55,7 @@ usage: omdall [options] <command> [command options] [options]
       The evidence recorded for each candidate, newest first: verdict,
       reasons, findings, how it was approved, and where the files are.
 
-  doctor [-p NAME] [--fix] [--no-wait]
+  doctor [-p NAME] [--fix] [--no-wait] [--json]
       Verify the wiring (hooks, origin, refs, reviewer model) and that the
       installed copy is a reviewed commit with no local changes. --fix
       installs missing hooks, but never over a post-merge hook of your own or
@@ -64,8 +67,11 @@ instead, having done nothing. status, reviews, doctor and approve --dry-run
 never wait.
 
 --json prints one JSON object on stdout (schema 1; fields are only added).
-A failure prints {"schema": 1, "error": ..., "code": ...} on stdout as well
-as the message on stderr.
+With add, check, update and doctor everything else goes to stderr, and the
+object lists each plugin's outcome, also when the exit status is 1. A refusal
+or a busy lock prints {"schema": 1, "error": ..., "code": ...} on stdout as
+well as the message on stderr. Every run that takes the lock is published in
+<state>/activity.json.
 
 Exit status: 0 done; 1 failed, refused, or found problems; 75 another run
 holds the lock (--no-wait only); 130 interrupted.
@@ -169,10 +175,10 @@ def command_parser(prog: str) -> _Parser:
             _plugin_option(p)
         case _:
             _plugin_option(p)
-    if prog in ("status", "reviews"):
-        p.add_argument("--json", action="store_true")
-    else:
+    if prog not in ("status", "reviews"):
         p.add_argument("--no-wait", action="store_true")
+    if prog != "approve":
+        p.add_argument("--json", action="store_true")
     return p
 
 
@@ -195,7 +201,7 @@ def _parse(prog: str, args: Sequence[str]) -> argparse.Namespace | None:
 
 
 @contextmanager
-def _json_errors(enabled: bool) -> Generator[None]:
+def _json_errors(enabled: bool, out: TextIO) -> Generator[None]:
     """With --json, a failure is also a JSON object on stdout, so a caller that
     reads stdout never has to parse a message. The error still propagates."""
     try:
@@ -203,12 +209,69 @@ def _json_errors(enabled: bool) -> Generator[None]:
     except (GateError, proc.CommandError) as e:
         if enabled:
             code = e.code if isinstance(e, GateError) else "error"
-            emit_json({"error": printable(str(e)), "code": code})
+            emit_json({"error": printable(str(e)), "code": code}, file=out)
         raise
+
+
+@contextmanager
+def _json_output(enabled: bool) -> Generator[TextIO]:
+    """With --json, stdout is kept for the one JSON object: everything else the
+    command prints goes to stderr. Yields the real stdout."""
+    out = sys.stdout
+    with _json_errors(enabled, out), redirect_stdout(sys.stderr) if enabled else nullcontext():
+        yield out
 
 
 def _context(self_path: Path, *namespaces: argparse.Namespace) -> Context:
     return Context.create(Config.from_env(os.environ, self_path, _overrides(*namespaces)))
+
+
+@dataclass(slots=True)
+class _Run:
+    """How a locked run ended, for activity.json. Anything that escapes without
+    setting `exit` counts as a failure."""
+
+    exit: int = 1
+    summary: CheckSummary | None = None
+
+    def done(self, report: Report) -> Report:
+        self.exit, self.summary = report.exit, report.summary
+        return report
+
+
+@contextmanager
+def _locked(ctx: Context, command: str, *, wait: bool = True) -> Generator[_Run]:
+    """Hold the state lock for one command, and publish its start and end in
+    activity.json, however it ends."""
+    with ctx.state.lock(wait=wait):
+        run = _Run()
+        ctx.activity.start(command)
+        try:
+            yield run
+        except GateError as e:
+            run.exit = e.exit_code
+            raise
+        except KeyboardInterrupt:
+            run.exit = 130
+            raise
+        finally:
+            ctx.activity.finish(run.exit, run.summary)
+
+
+def _action(ctx: Context, cmd: str, ns: argparse.Namespace) -> Report:
+    if cmd == "doctor" and not ns.fix:
+        return doctor.run(ctx, ns.plugin, fix=False)
+    with _locked(ctx, cmd, wait=not ns.no_wait) as run:
+        match cmd:
+            case "add":
+                report = add.run(ctx, add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable))
+            case "check":
+                report = check.run(ctx, ns.plugin)
+            case "update":
+                report = update.run(ctx, ns.plugin)
+            case _:
+                report = doctor.run(ctx, ns.plugin, fix=True)
+        return run.done(report)
 
 
 def dispatch(self_path: Path, argv: Sequence[str]) -> int:
@@ -226,8 +289,9 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
             if len(args) != 2:
                 raise GateError("_post-merge needs a plugin name and a directory")
             ctx = _context(self_path, lead)
-            with ctx.state.lock():
-                return post_merge.run(ctx, args[0], args[1])
+            with _locked(ctx, "tripwire") as run:
+                run.exit = post_merge.run(ctx, args[0], args[1])
+                return run.exit
         case "_complete":
             # Called on Tab: answer in plain lines, and never print a diagnostic
             # or fail the user's shell, whatever the config says.
@@ -235,14 +299,8 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
                 return complete.run(_context(self_path, lead), args)
             except Exception:  # noqa: BLE001 - completion must never fail
                 return 0
-        case "add":
-            if (ns := _parse(cmd, args)) is None:
-                return 0
-            ctx = _context(self_path, lead, ns)
-            with ctx.state.lock(wait=not ns.no_wait):
-                return add.run(ctx, add.AddArgs(ns.url, dir=ns.dir, enable=not ns.no_enable))
         case "status" | "reviews":
-            with _json_errors("--json" in args):
+            with _json_errors("--json" in args, sys.stdout):
                 if (ns := _parse(cmd, args)) is None:
                     return 0
                 ctx = _context(self_path, lead, ns)
@@ -257,29 +315,27 @@ def dispatch(self_path: Path, argv: Sequence[str]) -> int:
             if ns.name and ns.plugin:
                 raise GateError(f"unexpected argument: {ns.name}")
             ctx = _context(self_path, lead, ns)
-            with nullcontext() if ns.dry_run else ctx.state.lock(wait=not ns.no_wait):
-                return approve.run(
-                    ctx,
-                    approve.ApproveArgs(
-                        ns.name or ns.plugin,
-                        sha=ns.sha,
-                        reason=ns.reason,
-                        show=ns.show,
-                        dry_run=ns.dry_run,
-                    ),
-                )
-        case "check" | "update" | "doctor":
-            if (ns := _parse(cmd, args)) is None:
-                return 0
-            ctx = _context(self_path, lead, ns)
-            if cmd == "doctor" and not ns.fix:
-                return doctor.run(ctx, ns.plugin, fix=False)
-            with ctx.state.lock(wait=not ns.no_wait):
-                if cmd == "check":
-                    return check.run(ctx, ns.plugin)
-                if cmd == "update":
-                    return update.run(ctx, ns.plugin)
-                return doctor.run(ctx, ns.plugin, fix=True)
+            approve_args = approve.ApproveArgs(
+                ns.name or ns.plugin,
+                sha=ns.sha,
+                reason=ns.reason,
+                show=ns.show,
+                dry_run=ns.dry_run,
+            )
+            if ns.dry_run:
+                return approve.run(ctx, approve_args)
+            with _locked(ctx, cmd, wait=not ns.no_wait) as run:
+                run.exit = approve.run(ctx, approve_args)
+                return run.exit
+        case "add" | "check" | "update" | "doctor":
+            as_json = "--json" in args
+            with _json_output(as_json) as out:
+                if (ns := _parse(cmd, args)) is None:
+                    return 0
+                report = _action(_context(self_path, lead, ns), cmd, ns)
+            if as_json:
+                emit_json(report.json(), file=out)
+            return report.exit
         case _:
             warn(f"unknown command: {cmd}")
             print(USAGE.rstrip("\n"), file=sys.stderr)

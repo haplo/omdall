@@ -170,11 +170,11 @@ _omdall() {
 
   flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
   case $cmd in
-  add) flags+=(--dir --no-enable --no-wait) ;;
+  add) flags+=(--dir --no-enable --no-wait --json) ;;
   approve) flags+=(-p --plugin --sha --reason --show -n --dry-run --no-wait) ;;
-  check | update) flags+=(-p --plugin --no-wait) ;;
+  check | update) flags+=(-p --plugin --no-wait --json) ;;
   status | reviews) flags+=(-p --plugin --json) ;;
-  doctor) flags+=(-p --plugin --fix --no-wait) ;;
+  doctor) flags+=(-p --plugin --fix --no-wait --json) ;;
   esac
   [[ -n $cmd ]] || flags+=(--version)
 
