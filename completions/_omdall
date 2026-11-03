@@ -49,7 +49,7 @@ _omdall_plugin() {
       word=$words[i]
       case $word in
       -p | --plugin | --sha | --reason | --url | --dir | --root | --state | --agent | \
-        --model | --notify | --timeout | --max-patch) i=$((i + 1)) ;;
+        --model | --notify | --notify-action | --timeout | --max-patch) i=$((i + 1)) ;;
       -*) ;;
       *)
         print -r -- $word
@@ -128,6 +128,10 @@ _omdall_complete() {
     compadd all ready none
     return
     ;;
+  --notify-action)
+    compadd terminal panel
+    return
+    ;;
   --root | --state)
     _files -/
     return
@@ -138,7 +142,8 @@ _omdall_complete() {
   esac
   ((inline)) && return
 
-  flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
+  flags=(-h --help --root --state --agent --model --notify --notify-action --timeout
+    --max-patch)
   case $cmd in
   add) flags+=(--dir --no-enable --no-wait --json) ;;
   adopt) flags+=(--url --dir --no-wait --json) ;;

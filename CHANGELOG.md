@@ -31,6 +31,11 @@ uses [Semantic Versioning](https://semver.org/).
   previous origin is recorded in `<state>/<name>/adopted`.
 - `status --json` lists installed plugins no clone maps to under `unguarded`,
   with whether `adopt` can take them and, if not, why.
+- The `notify-action` setting (`OMDALL_NOTIFY_ACTION`, `--notify-action`):
+  `panel` makes a click on a notification open the omdall shell plugin's panel
+  (`omarchy-shell net.fidelramos.omdall open`). The default, `terminal`, keeps
+  opening `omdall status` in a floating terminal, and so does `panel` when
+  `omarchy-shell` is not on `PATH`.
 
 ### Changed
 

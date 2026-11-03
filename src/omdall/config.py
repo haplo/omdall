@@ -15,6 +15,7 @@ APPROVED_REF = "refs/heads/gate-approved"
 MAX_FINDINGS = 40
 
 NOTIFY_POLICIES = ("all", "ready", "none")
+NOTIFY_ACTIONS = ("terminal", "panel")
 
 DEFAULT_TIMEOUT = 420
 # 2 MiB of diff is roughly 600k-840k tokens, which leaves a 1M-token reviewer
@@ -37,6 +38,7 @@ class Overrides:
     agent: str | None = None
     model: str | None = None
     notify: str | None = None
+    notify_action: str | None = None
     timeout: str | None = None
     max_patch: str | None = None
 
@@ -167,6 +169,7 @@ class Config:
     agent: str
     model: str
     notify_policy: str
+    notify_action: str
     review_timeout: int
     max_patch_bytes: int
     self_path: Path
@@ -207,6 +210,12 @@ class Config:
             raise ConfigError(
                 f"{notify_source} must be one of {', '.join(NOTIFY_POLICIES)}, not '{notify}'"
             )
+        action, action_source = _setting(over, env, file, "notify_action")
+        action = action or "terminal"
+        if action not in NOTIFY_ACTIONS:
+            raise ConfigError(
+                f"{action_source} must be one of {', '.join(NOTIFY_ACTIONS)}, not '{action}'"
+            )
         timeout, timeout_source = _setting(over, env, file, "timeout")
         max_patch, max_patch_source = _setting(over, env, file, "max_patch")
         return cls(
@@ -216,6 +225,7 @@ class Config:
             agent=agent or "omdall-reviewer",
             model=model,
             notify_policy=notify,
+            notify_action=action,
             review_timeout=_positive_int(timeout, timeout_source, DEFAULT_TIMEOUT, "seconds"),
             max_patch_bytes=_positive_int(max_patch, max_patch_source, DEFAULT_MAX_PATCH, "bytes"),
             self_path=self_path,

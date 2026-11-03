@@ -101,12 +101,17 @@ Options, before or after the command. Each overrides its environment variable:
   --agent NAME       OMDALL_AGENT      reviewer agent (default omdall-reviewer)
   --model ID         OMDALL_MODEL      reviewer model (default: OpenCode's default)
   --notify POLICY    OMDALL_NOTIFY     all|ready|none (default all)
+  --notify-action ACTION
+                     OMDALL_NOTIFY_ACTION
+                                       what a notification click opens:
+                                       terminal|panel (default terminal)
   --timeout SECONDS  OMDALL_TIMEOUT    reviewer timeout (default 420)
   --max-patch BYTES  OMDALL_MAX_PATCH  patch size limit (default 2097152)
 
 Config file, lowest priority: $XDG_CONFIG_HOME/omdall/config.toml
 (default ~/.config/omdall/config.toml). Its keys are the option names without
-the dashes in front: root, state, agent, model, notify, timeout, max-patch.
+the dashes in front: root, state, agent, model, notify, notify-action,
+timeout, max-patch.
 """
 
 

@@ -1,6 +1,7 @@
 import pytest
 
-from omdall.notify import CheckSummary, check_notification
+from omdall import proc
+from omdall.notify import PANEL_TARGET, CheckSummary, check_notification, click_action
 
 
 def summary(**kw: list[str]) -> CheckSummary:
@@ -49,3 +50,22 @@ def test_ready_policy(s: CheckSummary, expected: bool) -> None:
 
 def test_none_policy() -> None:
     assert check_notification(summary(ready=["x"]), "none") is None
+
+
+def test_click_opens_a_terminal_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(proc, "which", lambda name: f"/stub/{name}")
+    assert click_action("terminal") == [
+        "omarchy-launch-floating-terminal-with-presentation",
+        "omdall status",
+    ]
+
+
+def test_click_opens_the_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(proc, "which", lambda name: f"/stub/{name}")
+    assert PANEL_TARGET == "net.fidelramos.omdall"
+    assert click_action("panel") == ["omarchy-shell", "net.fidelramos.omdall", "open"]
+
+
+def test_panel_falls_back_without_omarchy_shell(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(proc, "which", lambda name: None if name == "omarchy-shell" else name)
+    assert click_action("panel") == click_action("terminal")

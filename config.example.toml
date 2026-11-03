@@ -24,6 +24,11 @@
 # When to notify: "all", "ready" or "none".
 # notify = "all"
 
+# What a click on a notification opens: "terminal" runs omdall status in a
+# floating terminal, "panel" opens the omdall shell plugin's panel
+# (net.fidelramos.omdall), falling back to the terminal without omarchy-shell.
+# notify-action = "terminal"
+
 # Reviewer timeout, in seconds.
 # timeout = 420
 

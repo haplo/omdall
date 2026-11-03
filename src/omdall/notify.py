@@ -9,6 +9,18 @@ from .state import write_atomic
 APP = "omdall"
 ICON = "󰐕"
 
+# The front-end shell plugin's id, which is also its IPC target. With
+# notify-action = "panel", a click on a notification opens its panel.
+PANEL_TARGET = "net.fidelramos.omdall"
+
+
+def click_action(action: str) -> list[str]:
+    """What a click on a notification runs. The panel needs omarchy-shell; without
+    it the click opens status in a terminal, as by default."""
+    if action == "panel" and proc.which("omarchy-shell"):
+        return ["omarchy-shell", PANEL_TARGET, "open"]
+    return ["omarchy-launch-floating-terminal-with-presentation", "omdall status"]
+
 
 def notify(ctx: Context, headline: str, body: str) -> None:
     if ctx.cfg.notify_policy == "none" or proc.which("omarchy-notification-send") is None:
@@ -31,8 +43,7 @@ def notify(ctx: Context, headline: str, body: str) -> None:
         headline,
         body,
         "--exec",
-        "omarchy-launch-floating-terminal-with-presentation",
-        "omdall status",
+        *click_action(ctx.cfg.notify_action),
     ]
     result = proc.run(argv, check=False)
     new_id = result.text.strip()

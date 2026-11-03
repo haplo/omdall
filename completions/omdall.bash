@@ -116,7 +116,7 @@ _omdall_plugin() {
       word=${words[i]}
       case $word in
       -p | --plugin | --sha | --reason | --url | --dir | --root | --state | --agent | \
-        --model | --notify | --timeout | --max-patch) i=$((i + 1)) ;;
+        --model | --notify | --notify-action | --timeout | --max-patch) i=$((i + 1)) ;;
       -*) ;;
       *)
         printf '%s\n' "$word"
@@ -167,6 +167,10 @@ _omdall() {
     COMPREPLY=($(compgen -W "all ready none" -- "$cur"))
     return 0
     ;;
+  --notify-action)
+    COMPREPLY=($(compgen -W "terminal panel" -- "$cur"))
+    return 0
+    ;;
   --root | --state)
     _omdall_dirs "$cur"
     return 0
@@ -177,7 +181,8 @@ _omdall() {
   esac
   ((inline)) && return 0
 
-  flags=(-h --help --root --state --agent --model --notify --timeout --max-patch)
+  flags=(-h --help --root --state --agent --model --notify --notify-action --timeout
+    --max-patch)
   case $cmd in
   add) flags+=(--dir --no-enable --no-wait --json) ;;
   adopt) flags+=(--url --dir --no-wait --json) ;;

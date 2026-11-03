@@ -75,7 +75,7 @@ function __omdall_plugin
     while test $j -le (count $tokens)
         set -l token $tokens[$j]
         if contains -- $token -p --plugin --sha --reason --url --dir --root --state \
-                --agent --model --notify --timeout --max-patch
+                --agent --model --notify --notify-action --timeout --max-patch
             set j (math $j + 2)
             continue
         end
@@ -101,6 +101,7 @@ complete -c omdall -l state -r -a '(__fish_complete_directories)' -d 'Evidence a
 complete -c omdall -l agent -x -d 'Reviewer agent'
 complete -c omdall -l model -x -d 'Reviewer model'
 complete -c omdall -l notify -x -a 'all ready none' -d 'Notification policy'
+complete -c omdall -l notify-action -x -a 'terminal panel' -d 'What a notification click opens'
 complete -c omdall -l timeout -x -d 'Reviewer timeout in seconds'
 complete -c omdall -l max-patch -x -d 'Largest diff to review, in bytes'
 

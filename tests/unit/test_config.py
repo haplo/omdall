@@ -22,6 +22,7 @@ def test_defaults_follow_home_and_xdg() -> None:
     assert cfg.review_timeout == DEFAULT_TIMEOUT
     assert cfg.max_patch_bytes == DEFAULT_MAX_PATCH
     assert cfg.notify_policy == "all"
+    assert cfg.notify_action == "terminal"
     assert cfg.model == ""
     assert cfg.user == "me"
 
@@ -112,6 +113,20 @@ def test_bad_notify_policy_is_rejected() -> None:
         Config.from_env({"HOME": "/h", "OMDALL_NOTIFY": "sometimes"}, SELF)
     with pytest.raises(GateError, match=r"^--notify must be one of all, ready, none"):
         Config.from_env({"HOME": "/h"}, SELF, Overrides(notify="sometimes"))
+
+
+def test_notify_action() -> None:
+    assert Config.from_env({"HOME": "/h", "OMDALL_NOTIFY_ACTION": "panel"}, SELF).notify_action == (
+        "panel"
+    )
+    cfg = Config.from_env(
+        {"HOME": "/h", "OMDALL_NOTIFY_ACTION": "panel"}, SELF, Overrides(notify_action="terminal")
+    )
+    assert cfg.notify_action == "terminal"
+    with pytest.raises(GateError, match="OMDALL_NOTIFY_ACTION must be one of terminal, panel"):
+        Config.from_env({"HOME": "/h", "OMDALL_NOTIFY_ACTION": "popup"}, SELF)
+    with pytest.raises(GateError, match=r"^--notify-action must be one of terminal, panel"):
+        Config.from_env({"HOME": "/h"}, SELF, Overrides(notify_action="popup"))
 
 
 REPO = Path(__file__).parents[2]
@@ -230,7 +245,16 @@ def test_example_config_values_are_the_defaults(tmp_path: Path) -> None:
     text = (REPO / "config.example.toml").read_text()
     settings = [line[2:] for line in text.splitlines() if re.match(r"# [a-z-]+ = ", line)]
     keys = {line.split(" = ")[0] for line in settings}
-    assert keys == {"root", "state", "agent", "model", "notify", "timeout", "max-patch"}
+    assert keys == {
+        "root",
+        "state",
+        "agent",
+        "model",
+        "notify",
+        "notify-action",
+        "timeout",
+        "max-patch",
+    }
     cfg = Config.from_env(with_config(tmp_path, "\n".join(settings) + "\n"), SELF)
     assert cfg == defaults(cfg)
     assert (cfg.review_timeout, cfg.max_patch_bytes) == (DEFAULT_TIMEOUT, DEFAULT_MAX_PATCH)
