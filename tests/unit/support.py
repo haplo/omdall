@@ -5,7 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from omarchy_plugin_gate.git import Repo
+from omdall.git import Repo
 
 MANIFEST = {
     "schemaVersion": 1,

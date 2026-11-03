@@ -16,7 +16,7 @@ from .state import ReviewDir
 # The copy of the patch handed to the reviewer ends with this marker and a
 # per-run code word. The reviewer must echo the word as "SEEN <word>", which
 # proves the whole patch reached it; the hostile patch cannot know the word.
-PATCH_END_MARK = "omarchy-plugin-gate: end of patch, code word"
+PATCH_END_MARK = "omdall: end of patch, code word"
 
 UNSEEN = (
     "The reviewer did not echo the code word from the end of the patch, so it did not "

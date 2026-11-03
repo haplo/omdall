@@ -35,7 +35,7 @@ def run(ctx: Context, args: ApproveArgs) -> int:
             raise GateError(f"'{args.sha}' is not a commit in {clone.path}")
     else:
         if not held:
-            raise GateError(f"{name}: nothing held back; run: omarchy-plugin-gate check -p {name}")
+            raise GateError(f"{name}: nothing held back; run: omdall check -p {name}")
         sha = clone.commit(held.sha)
         if not sha:
             raise GateError(f"{name}: held commit {held.sha[:12]} is not in {clone.path}")
@@ -142,5 +142,5 @@ def run(ctx: Context, args: ApproveArgs) -> int:
     ctx.state.log_event(name, f"waived {sha[:12]} by {ctx.cfg.user} reason: {reason or '<none>'}")
 
     say()
-    say(f"Approved {sha[:12]} by hand. Run: omarchy-plugin-gate update -p {name}")
+    say(f"Approved {sha[:12]} by hand. Run: omdall update -p {name}")
     return 0

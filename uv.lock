@@ -21,7 +21,7 @@ wheels = [
 ]
 
 [[package]]
-name = "omarchy-plugin-gate"
+name = "omdall"
 version = "0.6.0"
 source = { virtual = "." }
 

@@ -9,14 +9,14 @@ file is for changing the code.
 
 ## Layout
 
-- `bin/omarchy-plugin-gate` — launcher run by the system `python3 -I`. It puts
+- `bin/omdall` — launcher run by the system `python3 -I`. It puts
   `src/` on the import path and calls `cli.main`. Hooks and the systemd unit
   call this exact file, so its path is part of the installed wiring.
-- `src/omarchy_plugin_gate/` — the CLI. Start at `cli.py` (subcommands `add`,
+- `src/omdall/` — the CLI. Start at `cli.py` (subcommands `add`,
   `check`, `approve`, `update`, `status`, `reviews`, `doctor`, and the hidden
   `_post-merge` hook entry point), then:
   - `config.py` — every setting, read once from the options, the environment
-    and the TOML config file (`$XDG_CONFIG_HOME/omarchy-plugin-gate/config.toml`),
+    and the TOML config file (`$XDG_CONFIG_HOME/omdall/config.toml`),
     in that order of priority.
   - `proc.py` — the only module that starts processes.
   - `git.py` — `Repo` wrapper; diffs and NUL-separated change records.
@@ -29,7 +29,7 @@ file is for changing the code.
   - `install.py` — first install of an approved commit (`omarchy plugin add`
     from the clone, then enable), shared by `add` and `update -p`.
   - `hooks.py`, `notify.py`, `plugins.py`, `context.py`, `commands/*.py`.
-- `agents/plugin-reviewer.md.in` — reviewer agent, installed verbatim. The
+- `agents/omdall-reviewer.md.in` — reviewer agent, installed verbatim. The
   agent is deny-all except `read`/`glob`/`grep`; its scope comes from the
   directory the gate runs it in plus the `external_directory` deny. In OpenCode
   V2, `glob` and `grep` rules match the pattern, not the search path, and
@@ -206,7 +206,7 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   with earlier releases; do not change them without a migration.
 - User-facing output goes through `output.say`, `info`, `ok`, `bad`, `warn` and
   `indented`; failures raise `GateError`, which prints
-  `omarchy-plugin-gate: <message>` to stderr and exits with its `exit_code`
+  `omdall: <message>` to stderr and exits with its `exit_code`
   (1; `Busy`, raised by `State.lock(wait=False)`, is 75).
 - `status --json` and `reviews --json` are the public interface for other
   programs (a front end, scripts); the state files are not. Their records
@@ -219,7 +219,7 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   `set -uo pipefail` (without `-e`) because it inspects non-zero exits; the
   files in `tests/lib/` and `tests/suites/` are sourced by it and inherit that.
 - A new setting is a field on `config.Overrides`, which gives it the option
-  `--<name>`, the variable `OMARCHY_PLUGIN_GATE_<NAME>` and the config file key
+  `--<name>`, the variable `OMDALL_<NAME>` and the config file key
   `<name>` (dashes, like the option); the option wins over the variable, which
   wins over the file. It gets a default in `Config.from_env`, a commented-out
   line at that default in `config.example.toml`, a row in the README settings
@@ -230,7 +230,7 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   by hand should set it too.
 - A user-visible change touches all three: `cli.USAGE`, `README.md`, and a
   test. For a release, bump `__version__` in
-  `src/omarchy_plugin_gate/__init__.py` and `version` in `pyproject.toml` (a
+  `src/omdall/__init__.py` and `version` in `pyproject.toml` (a
   unit test checks they match), and add a `CHANGELOG.md` entry.
 - Style: direct, lowercase commands, plain prose, no filler. Emit `✓`/`✗` only
   through the existing helpers.

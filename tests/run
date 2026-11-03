@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fixture test suite for omarchy-plugin-gate.
+# Fixture test suite for omdall.
 #
 # Each suite in tests/suites/ runs in its own subshell against a fresh fixture:
 # throwaway repositories, a stub reviewer and stub omarchy commands under a
@@ -15,7 +15,7 @@ set -uo pipefail
 
 TESTS=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 REPO=$(dirname "$TESTS")
-GATE=${GATE:-$REPO/bin/omarchy-plugin-gate}
+GATE=${GATE:-$REPO/bin/omdall}
 KEEP=0
 
 all=()
@@ -42,7 +42,7 @@ for arg in "$@"; do
 done
 ((${#names[@]} > 0)) || names=("${all[@]}")
 
-ROOT=$(mktemp -d "${TMPDIR:-/tmp}/omarchy-plugin-gate-test.XXXXXX")
+ROOT=$(mktemp -d "${TMPDIR:-/tmp}/omdall-test.XXXXXX")
 FAILED=$ROOT/failed
 : >"$FAILED"
 

@@ -16,9 +16,9 @@ from .context import Context
 from .output import GateError, emit_json, printable, say, warn
 
 USAGE = """\
-omarchy-plugin-gate — review Omarchy plugin updates before they reach the shell
+omdall — review Omarchy plugin updates before they reach the shell
 
-usage: omarchy-plugin-gate [options] <command> [command options] [options]
+usage: omdall [options] <command> [command options] [options]
 
   add <git-url> [--dir NAME] [--no-enable] [--no-wait]
       Clone into the gate root, review the initial tree, install it disabled,
@@ -71,20 +71,18 @@ Exit status: 0 done; 1 failed, refused, or found problems; 75 another run
 holds the lock (--no-wait only); 130 interrupted.
 
 Options, before or after the command. Each overrides its environment variable:
-  --root DIR         OMARCHY_PLUGIN_GATE_ROOT       gate root
-                                                    (default ~/Work/omarchy-plugins)
-  --state DIR        OMARCHY_PLUGIN_GATE_STATE      evidence and markers
-                                                    (default ~/.local/state/omarchy-plugin-gate)
-  --agent NAME       OMARCHY_PLUGIN_GATE_AGENT      reviewer agent (default plugin-reviewer)
-  --model ID         OMARCHY_PLUGIN_GATE_MODEL      reviewer model (default: OpenCode's default)
-  --notify POLICY    OMARCHY_PLUGIN_GATE_NOTIFY     all|ready|none (default all)
-  --timeout SECONDS  OMARCHY_PLUGIN_GATE_TIMEOUT    reviewer timeout (default 420)
-  --max-patch BYTES  OMARCHY_PLUGIN_GATE_MAX_PATCH  patch size limit (default 2097152)
+  --root DIR         OMDALL_ROOT       gate root (default ~/Work/omarchy-plugins)
+  --state DIR        OMDALL_STATE      evidence and markers
+                                       (default ~/.local/state/omdall)
+  --agent NAME       OMDALL_AGENT      reviewer agent (default omdall-reviewer)
+  --model ID         OMDALL_MODEL      reviewer model (default: OpenCode's default)
+  --notify POLICY    OMDALL_NOTIFY     all|ready|none (default all)
+  --timeout SECONDS  OMDALL_TIMEOUT    reviewer timeout (default 420)
+  --max-patch BYTES  OMDALL_MAX_PATCH  patch size limit (default 2097152)
 
-Config file, lowest priority: $XDG_CONFIG_HOME/omarchy-plugin-gate/config.toml
-(default ~/.config/omarchy-plugin-gate/config.toml). Its keys are the option
-names without the dashes in front: root, state, agent, model, notify, timeout,
-max-patch.
+Config file, lowest priority: $XDG_CONFIG_HOME/omdall/config.toml
+(default ~/.config/omdall/config.toml). Its keys are the option names without
+the dashes in front: root, state, agent, model, notify, timeout, max-patch.
 """
 
 
@@ -107,7 +105,7 @@ def _setting_options(p: argparse.ArgumentParser) -> None:
 
 
 def _parser(prog: str) -> _Parser:
-    p = _Parser(prog=f"omarchy-plugin-gate {prog}", add_help=False, allow_abbrev=False)
+    p = _Parser(prog=f"omdall {prog}", add_help=False, allow_abbrev=False)
     p.add_argument("-h", "--help", action="store_true")
     _setting_options(p)
     return p
@@ -125,7 +123,7 @@ def _split_settings(argv: Sequence[str]) -> tuple[list[str], list[str]]:
 
 
 def _parse_settings(args: Sequence[str]) -> argparse.Namespace:
-    p = _Parser(prog="omarchy-plugin-gate", add_help=False, allow_abbrev=False)
+    p = _Parser(prog="omdall", add_help=False, allow_abbrev=False)
     _setting_options(p)
     return p.parse_args(list(args))
 

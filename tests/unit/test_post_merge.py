@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate.commands import post_merge, update
-from omarchy_plugin_gate.config import APPROVED_REF
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.git import Repo
-from omarchy_plugin_gate.plugins import approved_manifest_id, manifest_id_of
+from omdall.commands import post_merge, update
+from omdall.config import APPROVED_REF
+from omdall.context import Context
+from omdall.git import Repo
+from omdall.plugins import approved_manifest_id, manifest_id_of
 from support import Upstream, git
 
 

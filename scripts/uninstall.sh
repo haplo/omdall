@@ -5,12 +5,12 @@ set -euo pipefail
 
 REPO=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
 
-BIN_DIR=${OMARCHY_PLUGIN_GATE_BIN_DIR:-$HOME/.local/bin}
+BIN_DIR=${OMDALL_BIN_DIR:-$HOME/.local/bin}
 CONFIG_HOME=${XDG_CONFIG_HOME:-}
 [[ $CONFIG_HOME == /* ]] || CONFIG_HOME=$HOME/.config
 DATA_HOME=${XDG_DATA_HOME:-}
 [[ $DATA_HOME == /* ]] || DATA_HOME=$HOME/.local/share
-CONFIG_FILE=$CONFIG_HOME/omarchy-plugin-gate/config.toml
+CONFIG_FILE=$CONFIG_HOME/omdall/config.toml
 # The root and state may be set in the config file, so ask the gate. If it
 # cannot say (a broken config, say), fall back to the environment.
 if paths=$(python3 -I "$REPO/scripts/paths.py"); then
@@ -18,28 +18,28 @@ if paths=$(python3 -I "$REPO/scripts/paths.py"); then
   STATE_DIR=$(sed -n 2p <<<"$paths")
 else
   echo "uninstall: using the environment and default paths instead" >&2
-  ROOT=${OMARCHY_PLUGIN_GATE_ROOT:-$HOME/Work/omarchy-plugins}
-  STATE_DIR=${OMARCHY_PLUGIN_GATE_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-plugin-gate}
+  ROOT=${OMDALL_ROOT:-$HOME/Work/omarchy-plugins}
+  STATE_DIR=${OMDALL_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/omdall}
 fi
 UNIT_DIR=$CONFIG_HOME/systemd/user
-AGENT_FILE=$CONFIG_HOME/opencode/agents/plugin-reviewer.md
+AGENT_FILE=$CONFIG_HOME/opencode/agents/omdall-reviewer.md
 BASH_COMPLETION_DIR=$DATA_HOME/bash-completion/completions
 FISH_COMPLETION_DIR=$DATA_HOME/fish/vendor_completions.d
 ZSH_COMPLETION_DIR=$DATA_HOME/zsh/site-functions
 
 if command -v systemctl >/dev/null 2>&1; then
-  systemctl --user disable --now omarchy-plugin-gate-check.timer >/dev/null 2>&1 || true
+  systemctl --user disable --now omdall-check.timer >/dev/null 2>&1 || true
 fi
-rm -f "$UNIT_DIR/omarchy-plugin-gate-check.service" "$UNIT_DIR/omarchy-plugin-gate-check.timer"
+rm -f "$UNIT_DIR/omdall-check.service" "$UNIT_DIR/omdall-check.timer"
 if command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload >/dev/null 2>&1 || true
 fi
 
-if [[ -L $BIN_DIR/omarchy-plugin-gate ]]; then
-  target=$(readlink -f "$BIN_DIR/omarchy-plugin-gate" 2>/dev/null || true)
-  if [[ $target == "$REPO/bin/omarchy-plugin-gate" ]]; then
-    rm -f "$BIN_DIR/omarchy-plugin-gate"
-    echo "removed $BIN_DIR/omarchy-plugin-gate"
+if [[ -L $BIN_DIR/omdall ]]; then
+  target=$(readlink -f "$BIN_DIR/omdall" 2>/dev/null || true)
+  if [[ $target == "$REPO/bin/omdall" ]]; then
+    rm -f "$BIN_DIR/omdall"
+    echo "removed $BIN_DIR/omdall"
   fi
 fi
 
@@ -59,9 +59,9 @@ remove_completion() { # <path>
   fi
 }
 
-remove_completion "$BASH_COMPLETION_DIR/omarchy-plugin-gate"
-remove_completion "$FISH_COMPLETION_DIR/omarchy-plugin-gate.fish"
-remove_completion "$ZSH_COMPLETION_DIR/_omarchy-plugin-gate"
+remove_completion "$BASH_COMPLETION_DIR/omdall"
+remove_completion "$FISH_COMPLETION_DIR/omdall.fish"
+remove_completion "$ZSH_COMPLETION_DIR/_omdall"
 
 remove_hooks() {
   local base=$1 dir hp hook
@@ -71,7 +71,7 @@ remove_hooks() {
     hp=$(git -C "$dir" rev-parse --git-path hooks 2>/dev/null) || continue
     [[ $hp == /* ]] || hp="$dir/$hp"
     hook=$hp/post-merge
-    if [[ -f $hook ]] && grep -q 'omarchy-plugin-gate' "$hook" 2>/dev/null; then
+    if [[ -f $hook ]] && grep -q 'omdall' "$hook" 2>/dev/null; then
       rm -f "$hook"
       echo "removed hook $hook"
     fi

@@ -21,7 +21,7 @@ DEFAULT_TIMEOUT = 420
 # room for its prompt, findings and answer. Lower it for smaller models.
 DEFAULT_MAX_PATCH = 2 * 1024 * 1024
 
-CONFIG_NAME = Path("omarchy-plugin-gate") / "config.toml"
+CONFIG_NAME = Path("omdall") / "config.toml"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +29,7 @@ class Overrides:
     """Settings given on the command line; None means the flag was not given.
 
     Each field is the flag `--<name>` (underscores become dashes), the variable
-    `OMARCHY_PLUGIN_GATE_<NAME>` and the config file key `<name>`.
+    `OMDALL_<NAME>` and the config file key `<name>`.
     """
 
     root: str | None = None
@@ -46,7 +46,7 @@ def option_flag(field: str) -> str:
 
 
 def env_var(field: str) -> str:
-    return "OMARCHY_PLUGIN_GATE_" + field.upper()
+    return "OMDALL_" + field.upper()
 
 
 def config_key(field: str) -> str:
@@ -186,7 +186,7 @@ class Config:
 
     @property
     def agent_src(self) -> Path:
-        return self.self_path.parent.parent / "agents" / "plugin-reviewer.md.in"
+        return self.self_path.parent.parent / "agents" / "omdall-reviewer.md.in"
 
     @classmethod
     def from_env(
@@ -211,9 +211,9 @@ class Config:
         max_patch, max_patch_source = _setting(over, env, file, "max_patch")
         return cls(
             root=Path(root) if root else home / "Work" / "omarchy-plugins",
-            state_root=Path(state) if state else state_home / "omarchy-plugin-gate",
+            state_root=Path(state) if state else state_home / "omdall",
             config_home=config_home,
-            agent=agent or "plugin-reviewer",
+            agent=agent or "omdall-reviewer",
             model=model,
             notify_policy=notify,
             review_timeout=_positive_int(timeout, timeout_source, DEFAULT_TIMEOUT, "seconds"),

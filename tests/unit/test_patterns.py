@@ -1,6 +1,6 @@
 import pytest
 
-from omarchy_plugin_gate import patterns
+from omdall import patterns
 
 
 @pytest.mark.parametrize(

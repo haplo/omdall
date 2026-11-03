@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import proc
-from omarchy_plugin_gate.commands import advance_main
-from omarchy_plugin_gate.git import Repo, parse_numstat_z, parse_raw_z, parse_status_z
+from omdall import proc
+from omdall.commands import advance_main
+from omdall.git import Repo, parse_numstat_z, parse_raw_z, parse_status_z
 from support import Upstream, git
 
 Z40 = "0" * 40

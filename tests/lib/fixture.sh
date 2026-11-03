@@ -2,8 +2,8 @@
 # lives under $B, which the runner gives each suite.
 
 setup_env() { # stubs first on PATH, private git config, state under $B
-  export OMARCHY_PLUGIN_GATE_ROOT=$B/root
-  export OMARCHY_PLUGIN_GATE_STATE=$B/state
+  export OMDALL_ROOT=$B/root
+  export OMDALL_STATE=$B/state
   export XDG_CONFIG_HOME=$B/cfg
   export PATH=$B/bin:$PATH
   export GIT_CONFIG_GLOBAL=$B/gitconfig
@@ -14,7 +14,7 @@ setup_env() { # stubs first on PATH, private git config, state under $B
   export OMARCHY_LOG=$B/omarchy.log
   export NOTIFY_LOG=$B/notify.log
   export BUSCTL_LOG=$B/busctl.log
-  export OMARCHY_PLUGIN_GATE_NOTIFY=none
+  export OMDALL_NOTIFY=none
 
   mkdir -p "$B"/{bin,root,state,cfg/omarchy/plugins}
   cp "$TESTS"/stubs/* "$B/bin/"

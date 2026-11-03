@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import mechanics, proc, reviewer
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.git import Repo
-from omarchy_plugin_gate.review import review
+from omdall import mechanics, proc, reviewer
+from omdall.context import Context
+from omdall.git import Repo
+from omdall.review import review
 from support import Upstream, git
 
 
@@ -31,7 +31,7 @@ def reviewer_stub(stub_bin: Path, body: str) -> None:
 
 ECHO_CODE = (
     'patch=""; prev=""; for a in "$@"; do [[ $prev == --file ]] && patch=$a; prev=$a; done\n'
-    "code=$(tail -n 1 \"$patch\" | sed -n 's/^omarchy-plugin-gate: end of patch, code word //p')\n"
+    "code=$(tail -n 1 \"$patch\" | sed -n 's/^omdall: end of patch, code word //p')\n"
 )
 
 
@@ -72,7 +72,7 @@ def test_missing_reviewer_fails(
     monkeypatch.setattr(
         reviewer,
         "reviewer_argv",
-        lambda *a: ["omarchy-plugin-gate-no-such-reviewer", *real(*a)[1:]],
+        lambda *a: ["omdall-no-such-reviewer", *real(*a)[1:]],
     )
     base, new = candidate(upstream)
     assert not review(ctx, "demo", upstream.repo, base, new)

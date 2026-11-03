@@ -2,7 +2,7 @@
 
 demo_approved
 install_copy
-export OMARCHY_PLUGIN_GATE_NOTIFY=all
+export OMDALL_NOTIFY=all
 
 printf '\n== notifications ==\n'
 commit_upstream 'printf "// notify\n" >> Widget.qml' notify

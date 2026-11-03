@@ -14,9 +14,9 @@ bash_complete() {
     shift
     COMP_WORDS=("$@")
     COMP_CWORD=$(($# - 1))
-    _omarchy_plugin_gate
+    _omdall
     printf "%s\n" "${COMPREPLY[@]}"
-  ' _ "$REPO/completions/omarchy-plugin-gate.bash" "$GATE" "$@" 2>&1
+  ' _ "$REPO/completions/omdall.bash" "$GATE" "$@" 2>&1
 }
 eq 'bash completion offers plugin names' "$(bash_complete status -p de)" demo
 eq 'bash completion offers the held commit for --sha' \
@@ -43,14 +43,14 @@ eq 'bash completion offers no --no-wait to status' "$(bash_complete status --no-
 
 printf '\n== fish completion ==\n'
 if command -v fish >/dev/null 2>&1; then
-  # fish runs `omarchy-plugin-gate` from PATH, so put this build there.
+  # fish runs `omdall` from PATH, so put this build there.
   mkdir -p "$B/fish-bin"
-  ln -sfn "$GATE" "$B/fish-bin/omarchy-plugin-gate"
+  ln -sfn "$GATE" "$B/fish-bin/omdall"
   fish_complete() {
     PATH="$B/fish-bin:$PATH" fish --no-config -c '
       source $argv[1]
-      complete -C"omarchy-plugin-gate $argv[2]" | string replace -r "\t.*" ""
-    ' "$REPO/completions/omarchy-plugin-gate.fish" "$1" 2>&1
+      complete -C"omdall $argv[2]" | string replace -r "\t.*" ""
+    ' "$REPO/completions/omdall.fish" "$1" 2>&1
   }
   eq 'fish completion offers plugin names to approve' "$(fish_complete 'approve de')" demo
   eq 'fish completion offers no second plugin to approve' "$(fish_complete 'approve demo ')" ''

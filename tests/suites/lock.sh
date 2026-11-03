@@ -61,7 +61,7 @@ for cmd in check update 'doctor --fix' 'approve demo --reason x'; do
   # shellcheck disable=SC2086 # the command and its arguments are split on purpose
   out=$(timeout 10 "$GATE" $cmd --no-wait 2>&1)
   eq "$cmd --no-wait exits 75" "$?" 75
-  has <(printf '%s' "$out") 'another omarchy-plugin-gate run is in progress' "$cmd --no-wait says why"
+  has <(printf '%s' "$out") 'another omdall run is in progress' "$cmd --no-wait says why"
   refute "$cmd --no-wait did not wait" grep -q 'waiting for another run' <(printf '%s' "$out")
 done
 kill "$holder"

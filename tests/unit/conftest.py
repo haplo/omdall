@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate.config import Config
-from omarchy_plugin_gate.context import Context
+from omdall.config import Config
+from omdall.context import Context
 from support import Upstream
 
 
@@ -44,12 +44,12 @@ def upstream(tmp_path: Path) -> Upstream:
 def cfg(tmp_path: Path) -> Config:
     env = {
         "HOME": str(tmp_path / "home"),
-        "OMARCHY_PLUGIN_GATE_ROOT": str(tmp_path / "root"),
-        "OMARCHY_PLUGIN_GATE_STATE": str(tmp_path / "state"),
+        "OMDALL_ROOT": str(tmp_path / "root"),
+        "OMDALL_STATE": str(tmp_path / "state"),
         "XDG_CONFIG_HOME": str(tmp_path / "cfg"),
         "USER": "tester",
     }
-    return Config.from_env(env, tmp_path / "repo" / "bin" / "omarchy-plugin-gate")
+    return Config.from_env(env, tmp_path / "repo" / "bin" / "omdall")
 
 
 @pytest.fixture

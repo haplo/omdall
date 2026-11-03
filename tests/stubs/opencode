@@ -14,7 +14,7 @@ printf '%s\n' "$PWD" >"$STUB_CWD"
 # Echo the code word from the patch's last line, as a reviewer that read it all
 # would. STUB_NO_SEEN=1 leaves it out, STUB_SEEN=<word> echoes a wrong one, and
 # STUB_SEEN_FMT is the printf format for the line.
-code=$(tail -n 1 "$patch" 2>/dev/null | sed -n 's/^omarchy-plugin-gate: end of patch, code word //p')
+code=$(tail -n 1 "$patch" 2>/dev/null | sed -n 's/^omdall: end of patch, code word //p')
 verdict="${STUB_VERDICT:-PASS}"
 if [[ -n ${STUB_FAIL_ON:-} && -f $patch ]] && grep -q -- "$STUB_FAIL_ON" "$patch"; then
   verdict=FAIL

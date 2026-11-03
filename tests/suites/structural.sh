@@ -3,7 +3,7 @@
 demo_approved
 
 printf '\n== hard structural failures (no model call) ==\n'
-case_hard 'oversized-patch' 'printf "// a line long enough to cross a tiny limit\n" >> Widget.qml' 'byte review limit' OMARCHY_PLUGIN_GATE_MAX_PATCH=64
+case_hard 'oversized-patch' 'printf "// a line long enough to cross a tiny limit\n" >> Widget.qml' 'byte review limit' OMDALL_MAX_PATCH=64
 case_hard 'manifest-id' 'jq ".id = \"selftest.other\"" manifest.json > m && mv m manifest.json' 'manifest id changed'
 case_hard 'bad-id' 'jq ".id = \"../x\"" manifest.json > m && mv m manifest.json' 'manifest id is not a valid plugin id ("../x")'
 has "$(vdir)verdict" 'manifest id changed' 'bad-id: id change reported too'

@@ -9,7 +9,7 @@ from .git import Repo
 from .output import printable, warn
 from .state import write_atomic
 
-MARK = "omarchy-plugin-gate"
+MARK = "omdall"
 
 
 def _ours(path: Path) -> bool:
@@ -55,7 +55,7 @@ def hook_text(cfg: Config, name: str) -> str:
     state = shlex.quote(str(cfg.state_root))
     return f"""\
 #!/usr/bin/env bash
-# Installed by omarchy-plugin-gate for {printable(name)}. Reviews out-of-band merges.
+# Installed by omdall for {printable(name)}. Reviews out-of-band merges.
 top=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 mkdir -p {state}
 {_exec_line(cfg, name)}"""

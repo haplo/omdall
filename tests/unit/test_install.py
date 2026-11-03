@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.install import install_new
+from omdall.context import Context
+from omdall.install import install_new
 from support import Upstream, git
 
 STUB = """\

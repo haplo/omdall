@@ -11,12 +11,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from omarchy_plugin_gate.config import Config  # noqa: E402
-from omarchy_plugin_gate.output import GateError  # noqa: E402
+from omdall.config import Config  # noqa: E402
+from omdall.output import GateError  # noqa: E402
 
 try:
-    cfg = Config.from_env(os.environ, REPO / "bin" / "omarchy-plugin-gate")
+    cfg = Config.from_env(os.environ, REPO / "bin" / "omdall")
 except GateError as e:
-    sys.exit(f"omarchy-plugin-gate: {e}")
+    sys.exit(f"omdall: {e}")
 print(cfg.root)
 print(cfg.state_root)

@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import mechanics
-from omarchy_plugin_gate.config import MAX_FINDINGS
-from omarchy_plugin_gate.git import Change
+from omdall import mechanics
+from omdall.config import MAX_FINDINGS
+from omdall.git import Change
 from support import Upstream, git
 
 

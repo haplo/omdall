@@ -5,20 +5,20 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import __version__
-from omarchy_plugin_gate.config import DEFAULT_MAX_PATCH, DEFAULT_TIMEOUT, Config, Overrides
-from omarchy_plugin_gate.output import GateError
+from omdall import __version__
+from omdall.config import DEFAULT_MAX_PATCH, DEFAULT_TIMEOUT, Config, Overrides
+from omdall.output import GateError
 
-SELF = Path("/repo/bin/omarchy-plugin-gate")
+SELF = Path("/repo/bin/omdall")
 
 
 def test_defaults_follow_home_and_xdg() -> None:
     cfg = Config.from_env({"HOME": "/h", "USER": "me"}, SELF)
     assert cfg.root == Path("/h/Work/omarchy-plugins")
-    assert cfg.state_root == Path("/h/.local/state/omarchy-plugin-gate")
+    assert cfg.state_root == Path("/h/.local/state/omdall")
     assert cfg.installed_root == Path("/h/.config/omarchy/plugins")
-    assert cfg.agent_file == Path("/h/.config/opencode/agents/plugin-reviewer.md")
-    assert cfg.agent_src == Path("/repo/agents/plugin-reviewer.md.in")
+    assert cfg.agent_file == Path("/h/.config/opencode/agents/omdall-reviewer.md")
+    assert cfg.agent_src == Path("/repo/agents/omdall-reviewer.md.in")
     assert cfg.review_timeout == DEFAULT_TIMEOUT
     assert cfg.max_patch_bytes == DEFAULT_MAX_PATCH
     assert cfg.notify_policy == "all"
@@ -28,20 +28,20 @@ def test_defaults_follow_home_and_xdg() -> None:
 
 def test_xdg_dirs() -> None:
     cfg = Config.from_env({"HOME": "/h", "XDG_STATE_HOME": "/s", "XDG_CONFIG_HOME": "/c"}, SELF)
-    assert cfg.state_root == Path("/s/omarchy-plugin-gate")
+    assert cfg.state_root == Path("/s/omdall")
     assert cfg.installed_root == Path("/c/omarchy/plugins")
 
 
 def test_environment_settings() -> None:
     env = {
         "HOME": "/h",
-        "OMARCHY_PLUGIN_GATE_ROOT": "/r",
-        "OMARCHY_PLUGIN_GATE_STATE": "/s",
-        "OMARCHY_PLUGIN_GATE_AGENT": "other-reviewer",
-        "OMARCHY_PLUGIN_GATE_MODEL": "venice/m",
-        "OMARCHY_PLUGIN_GATE_NOTIFY": "ready",
-        "OMARCHY_PLUGIN_GATE_TIMEOUT": "60",
-        "OMARCHY_PLUGIN_GATE_MAX_PATCH": "1000",
+        "OMDALL_ROOT": "/r",
+        "OMDALL_STATE": "/s",
+        "OMDALL_AGENT": "other-reviewer",
+        "OMDALL_MODEL": "venice/m",
+        "OMDALL_NOTIFY": "ready",
+        "OMDALL_TIMEOUT": "60",
+        "OMDALL_MAX_PATCH": "1000",
     }
     cfg = Config.from_env(env, SELF)
     assert (cfg.root, cfg.state_root) == (Path("/r"), Path("/s"))
@@ -53,13 +53,13 @@ def test_environment_settings() -> None:
 def test_overrides_beat_the_environment() -> None:
     env = {
         "HOME": "/h",
-        "OMARCHY_PLUGIN_GATE_ROOT": "/env-root",
-        "OMARCHY_PLUGIN_GATE_STATE": "/env-state",
-        "OMARCHY_PLUGIN_GATE_AGENT": "env-agent",
-        "OMARCHY_PLUGIN_GATE_MODEL": "env/model",
-        "OMARCHY_PLUGIN_GATE_NOTIFY": "all",
-        "OMARCHY_PLUGIN_GATE_TIMEOUT": "abc",
-        "OMARCHY_PLUGIN_GATE_MAX_PATCH": "abc",
+        "OMDALL_ROOT": "/env-root",
+        "OMDALL_STATE": "/env-state",
+        "OMDALL_AGENT": "env-agent",
+        "OMDALL_MODEL": "env/model",
+        "OMDALL_NOTIFY": "all",
+        "OMDALL_TIMEOUT": "abc",
+        "OMDALL_MAX_PATCH": "abc",
     }
     over = Overrides(
         root="/r",
@@ -78,31 +78,29 @@ def test_overrides_beat_the_environment() -> None:
 
 
 def test_unset_overrides_fall_back_to_the_environment() -> None:
-    env = {"HOME": "/h", "OMARCHY_PLUGIN_GATE_ROOT": "/env-root"}
+    env = {"HOME": "/h", "OMDALL_ROOT": "/env-root"}
     cfg = Config.from_env(env, SELF, Overrides(model="flag/model"))
     assert cfg.root == Path("/env-root")
     assert cfg.model == "flag/model"
 
 
 def test_empty_counts_as_unset() -> None:
-    cfg = Config.from_env(
-        {"HOME": "/h", "OMARCHY_PLUGIN_GATE_ROOT": "", "OMARCHY_PLUGIN_GATE_TIMEOUT": ""}, SELF
-    )
+    cfg = Config.from_env({"HOME": "/h", "OMDALL_ROOT": "", "OMDALL_TIMEOUT": ""}, SELF)
     assert cfg.root == Path("/h/Work/omarchy-plugins")
     assert cfg.review_timeout == DEFAULT_TIMEOUT
 
 
 @pytest.mark.parametrize("value", ["abc", "0", "-5", "7m", "1.5"])
 def test_bad_numbers_are_rejected(value: str) -> None:
-    with pytest.raises(GateError, match="OMARCHY_PLUGIN_GATE_TIMEOUT"):
-        Config.from_env({"HOME": "/h", "OMARCHY_PLUGIN_GATE_TIMEOUT": value}, SELF)
-    with pytest.raises(GateError, match="OMARCHY_PLUGIN_GATE_MAX_PATCH"):
-        Config.from_env({"HOME": "/h", "OMARCHY_PLUGIN_GATE_MAX_PATCH": value}, SELF)
+    with pytest.raises(GateError, match="OMDALL_TIMEOUT"):
+        Config.from_env({"HOME": "/h", "OMDALL_TIMEOUT": value}, SELF)
+    with pytest.raises(GateError, match="OMDALL_MAX_PATCH"):
+        Config.from_env({"HOME": "/h", "OMDALL_MAX_PATCH": value}, SELF)
 
 
 @pytest.mark.parametrize("value", ["abc", "0", "-5", "7m", "1.5"])
 def test_bad_number_flags_name_the_flag(value: str) -> None:
-    env = {"HOME": "/h", "OMARCHY_PLUGIN_GATE_TIMEOUT": "60"}
+    env = {"HOME": "/h", "OMDALL_TIMEOUT": "60"}
     with pytest.raises(GateError, match=r"^--timeout must"):
         Config.from_env(env, SELF, Overrides(timeout=value))
     with pytest.raises(GateError, match=r"^--max-patch must"):
@@ -111,7 +109,7 @@ def test_bad_number_flags_name_the_flag(value: str) -> None:
 
 def test_bad_notify_policy_is_rejected() -> None:
     with pytest.raises(GateError, match="all, ready, none"):
-        Config.from_env({"HOME": "/h", "OMARCHY_PLUGIN_GATE_NOTIFY": "sometimes"}, SELF)
+        Config.from_env({"HOME": "/h", "OMDALL_NOTIFY": "sometimes"}, SELF)
     with pytest.raises(GateError, match=r"^--notify must be one of all, ready, none"):
         Config.from_env({"HOME": "/h"}, SELF, Overrides(notify="sometimes"))
 
@@ -121,7 +119,7 @@ REPO = Path(__file__).parents[2]
 
 def with_config(tmp_path: Path, text: str | bytes, **env: str) -> dict[str, str]:
     """An environment whose config file holds text."""
-    path = tmp_path / "xdg" / "omarchy-plugin-gate" / "config.toml"
+    path = tmp_path / "xdg" / "omdall" / "config.toml"
     path.parent.mkdir(parents=True)
     if isinstance(text, str):
         text = text.encode()
@@ -142,7 +140,7 @@ def test_config_file_settings(tmp_path: Path) -> None:
         'notify = "ready"\ntimeout = 60\nmax-patch = 1000\n',
     )
     cfg = Config.from_env(env, SELF)
-    assert cfg.config_file == tmp_path / "xdg" / "omarchy-plugin-gate" / "config.toml"
+    assert cfg.config_file == tmp_path / "xdg" / "omdall" / "config.toml"
     assert (cfg.root, cfg.state_root) == (Path("/r"), Path("/h/st"))
     assert (cfg.agent, cfg.model, cfg.notify_policy) == ("a", "venice/m", "ready")
     assert (cfg.review_timeout, cfg.max_patch_bytes) == (60, 1000)
@@ -152,9 +150,9 @@ def test_config_file_has_the_lowest_priority(tmp_path: Path) -> None:
     env = with_config(
         tmp_path,
         'model = "file/model"\ntimeout = 60\nagent = "file-agent"\nnotify = "ready"\n',
-        OMARCHY_PLUGIN_GATE_MODEL="env/model",
-        OMARCHY_PLUGIN_GATE_TIMEOUT="",
-        OMARCHY_PLUGIN_GATE_AGENT="env-agent",
+        OMDALL_MODEL="env/model",
+        OMDALL_TIMEOUT="",
+        OMDALL_AGENT="env-agent",
     )
     cfg = Config.from_env(env, SELF, Overrides(agent="flag-agent"))
     assert cfg.model == "env/model"
@@ -166,7 +164,7 @@ def test_config_file_has_the_lowest_priority(tmp_path: Path) -> None:
 def test_missing_config_file_is_fine(tmp_path: Path) -> None:
     cfg = Config.from_env({"HOME": "/h", "XDG_CONFIG_HOME": str(tmp_path)}, SELF)
     assert cfg.model == ""
-    assert cfg.config_file == tmp_path / "omarchy-plugin-gate" / "config.toml"
+    assert cfg.config_file == tmp_path / "omdall" / "config.toml"
 
 
 def test_empty_strings_in_the_config_file_count_as_unset(tmp_path: Path) -> None:
@@ -198,7 +196,7 @@ def test_bad_config_files_are_rejected(tmp_path: Path, text: str, error: str) ->
 
 
 def test_bad_config_file_value_is_ignored_when_overridden(tmp_path: Path) -> None:
-    env = with_config(tmp_path, "timeout = 0\n", OMARCHY_PLUGIN_GATE_TIMEOUT="5")
+    env = with_config(tmp_path, "timeout = 0\n", OMDALL_TIMEOUT="5")
     assert Config.from_env(env, SELF).review_timeout == 5
 
 
@@ -208,7 +206,7 @@ def test_config_file_that_is_not_utf8(tmp_path: Path) -> None:
 
 
 def test_unreadable_config_file(tmp_path: Path) -> None:
-    (tmp_path / "omarchy-plugin-gate" / "config.toml").mkdir(parents=True)
+    (tmp_path / "omdall" / "config.toml").mkdir(parents=True)
     with pytest.raises(GateError, match="cannot read"):
         Config.from_env({"HOME": "/h", "XDG_CONFIG_HOME": str(tmp_path)}, SELF)
 
@@ -216,8 +214,8 @@ def test_unreadable_config_file(tmp_path: Path) -> None:
 def test_relative_xdg_dirs_are_ignored(tmp_path: Path) -> None:
     env = {"HOME": "/h", "XDG_CONFIG_HOME": "cfg", "XDG_STATE_HOME": "state"}
     cfg = Config.from_env(env, SELF)
-    assert cfg.config_file == Path("/h/.config/omarchy-plugin-gate/config.toml")
-    assert cfg.state_root == Path("/h/.local/state/omarchy-plugin-gate")
+    assert cfg.config_file == Path("/h/.config/omdall/config.toml")
+    assert cfg.state_root == Path("/h/.local/state/omdall")
 
 
 def test_example_config_is_all_commented_out(tmp_path: Path) -> None:

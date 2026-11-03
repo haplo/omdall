@@ -1,10 +1,24 @@
 # Changelog
 
-All notable changes to omarchy-plugin-gate. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
-[Semantic Versioning](https://semver.org/).
+All notable changes to omdall (called omarchy-plugin-gate before 0.7.0). The
+format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
+project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Changed
+
+- **Breaking:** the project is now called omdall, with no compatibility for
+  the old name. The command is `omdall`, the variables are `OMDALL_*` (the old
+  `OMARCHY_PLUGIN_GATE_*` ones are ignored), the config file is
+  `~/.config/omdall/config.toml`, the default state is `~/.local/state/omdall`,
+  the reviewer agent is `omdall-reviewer`, and the units are
+  `omdall-check.{service,timer}`. The default root, `~/Work/omarchy-plugins`,
+  is unchanged. To migrate: run the old `scripts/uninstall.sh` first (the new
+  one does not recognise the old hooks), move the repository, config and state
+  directories, rename any variables you export and any `agent =
+  "plugin-reviewer"` line in the config, then run `scripts/install.sh` and
+  `omdall doctor --fix`.
 
 ### Added
 
@@ -400,10 +414,10 @@ Initial release.
 - A nightly systemd user timer for `check`, desktop notifications, mise tasks,
   install and uninstall scripts, and a fixture test suite.
 
-[Unreleased]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/haplo/omarchy-plugin-gate/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/haplo/omarchy-plugin-gate/releases/tag/v0.1.0
+[Unreleased]: https://github.com/haplo/omdall/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/haplo/omdall/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/haplo/omdall/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/haplo/omdall/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/haplo/omdall/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/haplo/omdall/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/haplo/omdall/releases/tag/v0.1.0

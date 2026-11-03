@@ -14,7 +14,7 @@ has "$STUB_PROMPT" 'Structural findings: none.' 'prompt says there are no findin
 eq 'marker written' "$(ls "$B/state/demo/reviewed" | head -1)" "$(ap)"
 eq 'reviewer runs from the review directory' "$(cat "$STUB_CWD")/" "$(vdir)"
 assert 'reviewed copy ends with the code word' \
-  grep -q '^omarchy-plugin-gate: end of patch, code word [0-9a-f]\{16\}$' <(tail -n 1 "$(vdir)patch.review")
+  grep -q '^omdall: end of patch, code word [0-9a-f]\{16\}$' <(tail -n 1 "$(vdir)patch.review")
 refute 'raw patch left untouched' grep -q 'code word' "$(vdir)patch"
 refute 'code word not in the prompt' grep -q 'code word [0-9a-f]\{16\}' "$STUB_PROMPT"
 

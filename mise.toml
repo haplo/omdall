@@ -1,4 +1,4 @@
-# omarchy-plugin-gate — tasks
+# omdall — tasks
 #
 # The gate itself needs only the system python3 and git. uv is for development:
 # it installs the locked test, lint and type-check tools into .venv.
@@ -26,27 +26,27 @@ run = "scripts/uninstall.sh"
 # Day to day.
 [tasks.check]
 description = "Review upstream changes for every cloned plugin"
-run = "bin/omarchy-plugin-gate check"
+run = "bin/omdall check"
 
 [tasks.approve]
 description = "Approve one held candidate by hand, after reading its evidence"
-run = "bin/omarchy-plugin-gate approve"
+run = "bin/omdall approve"
 
 [tasks.update]
 description = "Apply approved commits to the installed plugins"
-run = "bin/omarchy-plugin-gate update"
+run = "bin/omdall update"
 
 [tasks.status]
 description = "Show installed, approved, upstream and held state"
-run = "bin/omarchy-plugin-gate status"
+run = "bin/omdall status"
 
 [tasks.reviews]
 description = "List the recorded reviews and their evidence"
-run = "bin/omarchy-plugin-gate reviews"
+run = "bin/omdall reviews"
 
 [tasks.doctor]
 description = "Verify the wiring; pass --fix to install missing hooks"
-run = "bin/omarchy-plugin-gate doctor"
+run = "bin/omdall doctor"
 
 # Development.
 [tasks.sync]
@@ -68,17 +68,17 @@ depends = ["test:unit", "test:fixture"]
 [tasks.fmt]
 description = "Format the code and apply safe lint fixes"
 run = [
-  "uv run --locked ruff format src tests/unit bin/omarchy-plugin-gate scripts/paths.py",
-  "uv run --locked ruff check --fix src tests/unit bin/omarchy-plugin-gate scripts/paths.py",
+  "uv run --locked ruff format src tests/unit bin/omdall scripts/paths.py",
+  "uv run --locked ruff check --fix src tests/unit bin/omdall scripts/paths.py",
 ]
 
 [tasks.lint]
 description = "Format check, lint, type check, shell syntax"
 run = [
-  "uv run --locked ruff format --check src tests/unit bin/omarchy-plugin-gate scripts/paths.py",
-  "uv run --locked ruff check src tests/unit bin/omarchy-plugin-gate scripts/paths.py",
+  "uv run --locked ruff format --check src tests/unit bin/omdall scripts/paths.py",
+  "uv run --locked ruff check src tests/unit bin/omdall scripts/paths.py",
   "uv run --locked ty check",
-  "for f in scripts/install.sh scripts/uninstall.sh tests/run tests/lib/*.sh tests/suites/*.sh tests/stubs/* completions/omarchy-plugin-gate.bash; do bash -n \"$f\" || exit 1; done",
-  "if command -v zsh >/dev/null 2>&1; then zsh -n completions/_omarchy-plugin-gate; fi",
-  "if command -v fish >/dev/null 2>&1; then fish --no-execute completions/omarchy-plugin-gate.fish; fi",
+  "for f in scripts/install.sh scripts/uninstall.sh tests/run tests/lib/*.sh tests/suites/*.sh tests/stubs/* completions/omdall.bash; do bash -n \"$f\" || exit 1; done",
+  "if command -v zsh >/dev/null 2>&1; then zsh -n completions/_omdall; fi",
+  "if command -v fish >/dev/null 2>&1; then fish --no-execute completions/omdall.fish; fi",
 ]

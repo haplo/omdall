@@ -3,17 +3,17 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import __version__, cli, proc
-from omarchy_plugin_gate.commands import add, doctor
-from omarchy_plugin_gate.commands.add import clone_name, insecure_scheme, url_problem
-from omarchy_plugin_gate.commands.status import plugin_state
-from omarchy_plugin_gate.config import Config, Overrides
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.hooks import hook_ok, hook_target, hook_text, install_hook
-from omarchy_plugin_gate.output import GateError, printable
+from omdall import __version__, cli, proc
+from omdall.commands import add, doctor
+from omdall.commands.add import clone_name, insecure_scheme, url_problem
+from omdall.commands.status import plugin_state
+from omdall.config import Config, Overrides
+from omdall.context import Context
+from omdall.hooks import hook_ok, hook_target, hook_text, install_hook
+from omdall.output import GateError, printable
 from support import Upstream, git
 
-LAUNCHER = Path(__file__).parents[2] / "bin" / "omarchy-plugin-gate"
+LAUNCHER = Path(__file__).parents[2] / "bin" / "omdall"
 
 
 def gate(*args: str, **env: str) -> subprocess.CompletedProcess[str]:
@@ -32,7 +32,7 @@ def test_launcher_version() -> None:
 
 
 def test_launcher_ignores_pythonpath(tmp_path: Path) -> None:
-    evil = tmp_path / "omarchy_plugin_gate"
+    evil = tmp_path / "omdall"
     evil.mkdir()
     (evil / "__init__.py").write_text("raise SystemExit('hijacked')\n")
     r = gate("--version", PYTHONPATH=str(tmp_path))
@@ -42,7 +42,7 @@ def test_launcher_ignores_pythonpath(tmp_path: Path) -> None:
 def test_unknown_command(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(LAUNCHER, ["frob"]) == 1
     err = capsys.readouterr().err
-    assert err.startswith("omarchy-plugin-gate: unknown command: frob\n")
+    assert err.startswith("omdall: unknown command: frob\n")
 
 
 @pytest.mark.parametrize(
@@ -58,7 +58,7 @@ def test_unknown_command(capsys: pytest.CaptureFixture[str]) -> None:
 )
 def test_bad_arguments_exit_1(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(LAUNCHER, argv) == 1
-    assert capsys.readouterr().err.startswith("omarchy-plugin-gate: ")
+    assert capsys.readouterr().err.startswith("omdall: ")
 
 
 def test_help_needs_no_config(capsys: pytest.CaptureFixture[str]) -> None:
@@ -77,7 +77,7 @@ def seen_config(monkeypatch: pytest.MonkeyPatch) -> list[Config]:
 
     monkeypatch.setattr(cli.Context, "create", create)
     for var in ("ROOT", "STATE", "AGENT", "MODEL", "NOTIFY", "TIMEOUT", "MAX_PATCH"):
-        monkeypatch.delenv(f"OMARCHY_PLUGIN_GATE_{var}", raising=False)
+        monkeypatch.delenv(f"OMDALL_{var}", raising=False)
     return seen
 
 
@@ -114,8 +114,8 @@ def test_every_setting_has_an_option(seen_config: list[Config]) -> None:
 def test_options_beat_the_environment(
     seen_config: list[Config], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OMARCHY_PLUGIN_GATE_MODEL", "env/model")
-    monkeypatch.setenv("OMARCHY_PLUGIN_GATE_TIMEOUT", "soon")
+    monkeypatch.setenv("OMDALL_MODEL", "env/model")
+    monkeypatch.setenv("OMDALL_TIMEOUT", "soon")
     assert cli.main(LAUNCHER, ["check", "--model", "flag/model", "--timeout", "5"]) == 1
     [cfg] = seen_config
     assert (cfg.model, cfg.review_timeout) == ("flag/model", 5)
@@ -124,11 +124,11 @@ def test_options_beat_the_environment(
 def test_config_file_is_read_last(
     seen_config: list[Config], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    config = tmp_path / "omarchy-plugin-gate" / "config.toml"
+    config = tmp_path / "omdall" / "config.toml"
     config.parent.mkdir()
     config.write_text('model = "file/model"\ntimeout = 9\nnotify = "ready"\n')
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    monkeypatch.setenv("OMARCHY_PLUGIN_GATE_TIMEOUT", "8")
+    monkeypatch.setenv("OMDALL_TIMEOUT", "8")
     assert cli.main(LAUNCHER, ["check", "--notify", "none"]) == 1
     [cfg] = seen_config
     assert (cfg.model, cfg.review_timeout, cfg.notify_policy) == ("file/model", 8, "none")
@@ -137,7 +137,7 @@ def test_config_file_is_read_last(
 def test_bad_config_file_is_reported(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    config = tmp_path / "omarchy-plugin-gate" / "config.toml"
+    config = tmp_path / "omdall" / "config.toml"
     config.parent.mkdir()
     config.write_text("modle = 'typo'\n")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -166,7 +166,7 @@ def test_bad_setting_options_exit_1(
 ) -> None:
     assert cli.main(LAUNCHER, argv) == 1
     assert seen_config == []
-    assert capsys.readouterr().err.startswith("omarchy-plugin-gate: ")
+    assert capsys.readouterr().err.startswith("omdall: ")
 
 
 def test_help_and_version_after_setting_options(capsys: pytest.CaptureFixture[str]) -> None:
@@ -179,9 +179,9 @@ def test_help_and_version_after_setting_options(capsys: pytest.CaptureFixture[st
 def test_bad_environment_is_reported(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OMARCHY_PLUGIN_GATE_TIMEOUT", "soon")
+    monkeypatch.setenv("OMDALL_TIMEOUT", "soon")
     assert cli.main(LAUNCHER, ["status"]) == 1
-    assert "OMARCHY_PLUGIN_GATE_TIMEOUT" in capsys.readouterr().err
+    assert "OMDALL_TIMEOUT" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -315,8 +315,8 @@ def test_printable() -> None:
 
 def test_hook_quotes_paths_and_names(tmp_path: Path) -> None:
     cfg = Config.from_env(
-        {"HOME": str(tmp_path), "OMARCHY_PLUGIN_GATE_STATE": str(tmp_path / "st ate")},
-        tmp_path / "my repo" / "bin" / "omarchy-plugin-gate",
+        {"HOME": str(tmp_path), "OMDALL_STATE": str(tmp_path / "st ate")},
+        tmp_path / "my repo" / "bin" / "omdall",
     )
     text = hook_text(cfg, "it's; rm -rf ~")
     assert (
@@ -415,8 +415,8 @@ def test_hook_with_other_paths_is_stale(
     assert install_hook(cfg, upstream.path, "demo") is None
     env = {
         "HOME": str(tmp_path / "home"),
-        "OMARCHY_PLUGIN_GATE_ROOT": str(cfg.root),
-        "OMARCHY_PLUGIN_GATE_STATE": str(cfg.state_root),
+        "OMDALL_ROOT": str(cfg.root),
+        "OMDALL_STATE": str(cfg.state_root),
     }
     other = Config.from_env(env, cfg.self_path, override)
     assert not hook_ok(other, upstream.path, "demo")

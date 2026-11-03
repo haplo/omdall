@@ -4,7 +4,7 @@ import json
 import sys
 from typing import Any
 
-PREFIX = "omarchy-plugin-gate"
+PREFIX = "omdall"
 
 # Version of the --json output. Fields are only ever added; a removal or a
 # change of meaning bumps it.

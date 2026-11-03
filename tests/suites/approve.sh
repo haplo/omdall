@@ -55,7 +55,7 @@ has <(printf '%s' "$out") 'waived by hand' 'status reports the waiver'
 printf '\n== approve a structural hold ==\n'
 commit_upstream 'printf "// a line long enough to cross a tiny limit\n" >> Widget.qml' 'structural approve'
 n0=$(invocations)
-OMARCHY_PLUGIN_GATE_MAX_PATCH=64 "$GATE" check -p demo >/dev/null 2>&1
+OMDALL_MAX_PATCH=64 "$GATE" check -p demo >/dev/null 2>&1
 held3=$(upstream_sha)
 eq 'structural approve: candidate held' "$(head -1 "$B/state/demo/held")" "$held3"
 "$GATE" approve demo --reason "I need this one" >/dev/null 2>&1

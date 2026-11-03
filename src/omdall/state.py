@@ -156,7 +156,7 @@ class State:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 if not wait:
-                    raise Busy("another omarchy-plugin-gate run is in progress") from None
+                    raise Busy("another omdall run is in progress") from None
                 warn("waiting for another run to finish…")
                 fcntl.flock(fd, fcntl.LOCK_EX)
             yield

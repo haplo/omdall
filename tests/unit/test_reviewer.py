@@ -1,7 +1,7 @@
 import pytest
 
-from omarchy_plugin_gate import reviewer
-from omarchy_plugin_gate.reviewer import UNSEEN, decide, finding_problems, seen_code
+from omdall import reviewer
+from omdall.reviewer import UNSEEN, decide, finding_problems, seen_code
 
 CODE = "0123456789abcdef"
 SEEN = f"SEEN {CODE}"

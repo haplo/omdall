@@ -49,7 +49,7 @@ fidir=$B/cfg/omarchy/plugins/selftest.fresh
 out=$(STUB_FAIL_ON='A fixture widget' "$GATE" add "$B/fresh.git" 2>&1)
 eq 'fresh: add fails closed' "$?" 1
 eq 'fresh: held records the reviewed commit' "$(head -1 "$B/state/fresh/held" 2>/dev/null)" "$fresh"
-has <(printf '%s' "$out") 'omarchy-plugin-gate update -p fresh' 'fresh: add names the way forward'
+has <(printf '%s' "$out") 'omdall update -p fresh' 'fresh: add names the way forward'
 
 "$GATE" approve fresh --reason 'read it myself' >/dev/null 2>&1
 eq 'fresh: approve finds the held commit' "$(git -C "$fclone" rev-parse refs/heads/gate-approved)" "$fresh"
@@ -59,7 +59,7 @@ has <(printf '%s' "$out") 'update -p fresh' 'fresh: status names update -p'
 
 out=$("$GATE" update 2>&1)
 eq 'fresh: plain update does not install' "$(grep -c 'plugin add' "$OMARCHY_LOG" || true)" 0
-has <(printf '%s' "$out") 'install with: omarchy-plugin-gate update -p fresh' 'fresh: plain update names update -p'
+has <(printf '%s' "$out") 'install with: omdall update -p fresh' 'fresh: plain update names update -p'
 
 git -C "$fclone" -c commit.gpgsign=false commit -q --allow-empty -m 'local work'
 "$GATE" update -p fresh >/dev/null 2>&1

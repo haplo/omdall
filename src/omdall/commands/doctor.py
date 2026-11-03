@@ -153,7 +153,7 @@ def run(ctx: Context, want: str, fix: bool) -> int:
     if not agent.is_file():
         bad(f"missing reviewer agent: {agent}")
         failures += 1
-    elif cfg.agent == "plugin-reviewer" and src.is_file() and _read(agent) != _read(src):
+    elif cfg.agent == "omdall-reviewer" and src.is_file() and _read(agent) != _read(src):
         bad(f"reviewer agent is out of date: {agent} (run: mise run install)")
         failures += 1
     else:

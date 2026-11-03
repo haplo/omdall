@@ -6,7 +6,7 @@ from . import proc
 from .context import Context
 from .state import write_atomic
 
-APP = "omarchy-plugin-gate"
+APP = "omdall"
 ICON = "󰐕"
 
 
@@ -32,7 +32,7 @@ def notify(ctx: Context, headline: str, body: str) -> None:
         body,
         "--exec",
         "omarchy-launch-floating-terminal-with-presentation",
-        "omarchy-plugin-gate status",
+        "omdall status",
     ]
     result = proc.run(argv, check=False)
     new_id = result.text.strip()
@@ -80,10 +80,10 @@ def check_notification(s: CheckSummary, policy: str) -> tuple[str, str] | None:
             if name in s.cleared:
                 body = (
                     "Approved after the reviewer cleared structural findings. "
-                    "Check status, then run omarchy-plugin-gate update."
+                    "Check status, then run omdall update."
                 )
             else:
-                body = "Reviewed and approved. Run omarchy-plugin-gate update."
+                body = "Reviewed and approved. Run omdall update."
             return f"{name}: update ready", body
         return f"{s.held[0]}: update held back", "The review failed. Open status to see why."
     body = f"{ready} ready to install · {held} held back"

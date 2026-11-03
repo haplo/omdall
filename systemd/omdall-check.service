@@ -1,14 +1,14 @@
 [Unit]
-Description=Review Omarchy plugin updates (omarchy-plugin-gate check)
-Documentation=file:%h/.local/bin/omarchy-plugin-gate
+Description=Review Omarchy plugin updates (omdall check)
+Documentation=file:%h/.local/bin/omdall
 
 [Service]
 Type=oneshot
 # Same reviewer binary the interactive shell uses; mise's command wrapper
 # resolves the configured opencode version, so this survives upgrades.
 Environment=PATH=%h/.local/share/mise/command-wrappers/bin:%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-# Settings come from ~/.config/omarchy-plugin-gate/config.toml. To pin a
+# Settings come from ~/.config/omdall/config.toml. To pin a
 # reviewer model for the unattended runs only, override it here, e.g.:
-# Environment=OMARCHY_PLUGIN_GATE_MODEL=venice/deepseek-v4-1-flash-1017
-ExecStart=%h/.local/bin/omarchy-plugin-gate check
+# Environment=OMDALL_MODEL=venice/deepseek-v4-1-flash-1017
+ExecStart=%h/.local/bin/omdall check
 Nice=10

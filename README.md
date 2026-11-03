@@ -1,4 +1,4 @@
-# omarchy-plugin-gate
+# omdall
 
 Review-before-update gate for [Omarchy](https://omarchy.org) shell plugins.
 
@@ -20,19 +20,19 @@ that passed.
 ## Install
 
 ```sh
-git clone https://github.com/haplo/omarchy-plugin-gate ~/Work/omarchy-plugin-gate
-cd ~/Work/omarchy-plugin-gate
+git clone https://github.com/haplo/omdall ~/Work/omdall
+cd ~/Work/omdall
 mise trust          # once: allow mise to run this project's tasks
 mise run install
 ```
 
 The installation does several things:
 
-1. Symlinks the `omarchy-plugin-gate` command to `~/.local/bin`.
+1. Symlinks the `omdall` command to `~/.local/bin`.
 2. Links the shell completions into `~/.local/share`.
 3. Places the reviewer agent prompt into `~/.config/opencode/agents/`.
 4. Copies [`config.example.toml`](config.example.toml) to
-`~/.config/omarchy-plugin-gate/config.toml` if there is no config file yet.
+`~/.config/omdall/config.toml` if there is no config file yet.
 5. Installs the systemd user units and enables the daily check. Use `mise run
    install:no-timer` to skip the timer.
 
@@ -45,9 +45,9 @@ Without mise, [scripts/install.sh](scripts/install.sh) does the same thing.
 
 | Shell | Path |
 |---|---|
-| bash | `$XDG_DATA_HOME/bash-completion/completions/omarchy-plugin-gate` |
-| fish | `$XDG_DATA_HOME/fish/vendor_completions.d/omarchy-plugin-gate.fish` |
-| zsh | `$XDG_DATA_HOME/zsh/site-functions/_omarchy-plugin-gate` |
+| bash | `$XDG_DATA_HOME/bash-completion/completions/omdall` |
+| fish | `$XDG_DATA_HOME/fish/vendor_completions.d/omdall.fish` |
+| zsh | `$XDG_DATA_HOME/zsh/site-functions/_omdall` |
 
 bash finds its file through bash-completion, and fish scans
 `vendor_completions.d` itself. zsh has no per-user directory that it scans, so
@@ -65,29 +65,29 @@ they do for the command. Both `--option value` and `--option=value` work.
 Then wire up whatever is already cloned:
 
 ```sh
-omarchy-plugin-gate doctor --fix
+omdall doctor --fix
 ```
 
 ## Quick start
 
 ```sh
 # install a new plugin end to end: clone, review, install disabled, enable on PASS
-omarchy-plugin-gate add https://github.com/ninepointlabs/omasync
+omdall add https://github.com/ninepointlabs/omasync
 
 # review upstream changes (the daily timer runs this)
-omarchy-plugin-gate check
+omdall check
 
 # after reading a failed review yourself, accept that one commit
-omarchy-plugin-gate approve <name>
+omdall approve <name>
 
 # apply approved commits to the installed copies
-omarchy-plugin-gate update
+omdall update
 
 # what is installed, approved, upstream, held
-omarchy-plugin-gate status
+omdall status
 
 # every recorded review, newest first, with its evidence
-omarchy-plugin-gate reviews <name>
+omdall reviews <name>
 ```
 
 A notification appears only when something needs a decision: an update is ready
@@ -128,7 +128,7 @@ reviewed (an adopted plugin, or a commit made in the installed copy); `doctor`
 reports both as problems and lists ignored files for information.
 
 Every candidate keeps its evidence under
-`~/.local/state/omarchy-plugin-gate/<name>/`:
+`~/.local/state/omdall/<name>/`:
 
 ```
 reviews/<short-sha>/patch        the exact diff that was reviewed
@@ -163,8 +163,8 @@ prints `{"schema": 1, "error": "…", "code": "…"}` on stdout, the message on
 stderr, and exits 1.
 
 ```sh
-omarchy-plugin-gate status --json | jq -r '.plugins[] | "\(.name) \(.state)"'
-omarchy-plugin-gate reviews demo --json | jq '.plugins[0].reviews[0].files'
+omdall status --json | jq -r '.plugins[] | "\(.name) \(.state)"'
+omdall reviews demo --json | jq '.plugins[0].reviews[0].files'
 ```
 
 `status --json` has `version`, `root`, `state`, `busy` and `plugins`. Each
@@ -282,7 +282,7 @@ not exist is recorded as `REVIEW FAIL`. A pass that cleared findings writes
 `reviews/<short-sha>/cleared`, and `check`, `status` and the notification all
 say so, so you know which approvals are worth a second look.
 
-**The reviewer** is a read-only OpenCode agent (`plugin-reviewer`) with no shell,
+**The reviewer** is a read-only OpenCode agent (`omdall-reviewer`) with no shell,
 no write access and no network tools. It runs from the candidate's review
 directory and may only read, glob and grep inside it, so it sees the patch and
 nothing else. It receives the patch, the structural findings and keyword hints,
@@ -326,10 +326,10 @@ reviewer's answer is cleaned the same way before it is stored in `verdict`,
 `cleared` and `held`; `review.txt` keeps its raw output.
 
 ```sh
-omarchy-plugin-gate approve my-plugin          # prompt for a reason
-omarchy-plugin-gate approve my-plugin --show   # read the diff first
-omarchy-plugin-gate approve my-plugin --reason "upstream fix I checked"
-omarchy-plugin-gate update -p my-plugin
+omdall approve my-plugin          # prompt for a reason
+omdall approve my-plugin --show   # read the diff first
+omdall approve my-plugin --reason "upstream fix I checked"
+omdall update -p my-plugin
 ```
 
 A waiver is one commit, not a standing trust setting. It lives in
@@ -388,12 +388,12 @@ the command takes the value after it. An empty variable or config value counts
 as unset.
 
 ```sh
-omarchy-plugin-gate --model venice/claude-opus-4-7 check
-omarchy-plugin-gate check -p omasync --timeout 900
+omdall --model venice/claude-opus-4-7 check
+omdall check -p omasync --timeout 900
 ```
 
-The config file is `$XDG_CONFIG_HOME/omarchy-plugin-gate/config.toml`
-(`~/.config/omarchy-plugin-gate/config.toml` when `XDG_CONFIG_HOME` is unset or
+The config file is `$XDG_CONFIG_HOME/omdall/config.toml`
+(`~/.config/omdall/config.toml` when `XDG_CONFIG_HOME` is unset or
 not an absolute path), in TOML:
 
 ```toml
@@ -410,13 +410,13 @@ reads the same file.
 
 | Option | Variable | Config key | Default | Purpose |
 |---|---|---|---|---|
-| `--root DIR` | `OMARCHY_PLUGIN_GATE_ROOT` | `root` | `~/Work/omarchy-plugins` | where working clones live |
-| `--state DIR` | `OMARCHY_PLUGIN_GATE_STATE` | `state` | `~/.local/state/omarchy-plugin-gate` | evidence and markers |
-| `--agent NAME` | `OMARCHY_PLUGIN_GATE_AGENT` | `agent` | `plugin-reviewer` | OpenCode agent that reviews, read from `~/.config/opencode/agents/<name>.md` |
-| `--model ID` | `OMARCHY_PLUGIN_GATE_MODEL` | `model` | OpenCode's default | model for the reviewer, e.g. `venice/claude-opus-4-7` |
-| `--notify POLICY` | `OMARCHY_PLUGIN_GATE_NOTIFY` | `notify` | `all` | `all`, `ready`, or `none` |
-| `--timeout SECONDS` | `OMARCHY_PLUGIN_GATE_TIMEOUT` | `timeout` | `420` | reviewer timeout, seconds |
-| `--max-patch BYTES` | `OMARCHY_PLUGIN_GATE_MAX_PATCH` | `max-patch` | `2097152` | largest diff that is auto-reviewed; assumes a 1M-token model, so lower it for smaller ones (about 3 bytes per token, minus headroom) |
+| `--root DIR` | `OMDALL_ROOT` | `root` | `~/Work/omarchy-plugins` | where working clones live |
+| `--state DIR` | `OMDALL_STATE` | `state` | `~/.local/state/omdall` | evidence and markers |
+| `--agent NAME` | `OMDALL_AGENT` | `agent` | `omdall-reviewer` | OpenCode agent that reviews, read from `~/.config/opencode/agents/<name>.md` |
+| `--model ID` | `OMDALL_MODEL` | `model` | OpenCode's default | model for the reviewer, e.g. `venice/claude-opus-4-7` |
+| `--notify POLICY` | `OMDALL_NOTIFY` | `notify` | `all` | `all`, `ready`, or `none` |
+| `--timeout SECONDS` | `OMDALL_TIMEOUT` | `timeout` | `420` | reviewer timeout, seconds |
+| `--max-patch BYTES` | `OMDALL_MAX_PATCH` | `max-patch` | `2097152` | largest diff that is auto-reviewed; assumes a 1M-token model, so lower it for smaller ones (about 3 bytes per token, minus headroom) |
 
 Tripwire hooks record the root and state of the run that installed them, so a
 merge reviewed by the hook uses the same clones and evidence directory whatever
@@ -435,8 +435,8 @@ installed from GitHub:
 ```sh
 git clone <upstream-url> ~/Work/omarchy-plugins/<name>
 git -C ~/.config/omarchy/plugins/<id> remote set-url origin ~/Work/omarchy-plugins/<name>
-omarchy-plugin-gate check        # reviews the current tree, sets gate-approved
-omarchy-plugin-gate doctor --fix # tripwires
+omdall check        # reviews the current tree, sets gate-approved
+omdall doctor --fix # tripwires
 ```
 
 `check` bootstraps the first review from the whole tree when no
@@ -446,8 +446,8 @@ reviewed until `update` moves it.
 
 ## Development
 
-The gate is Python in `src/omarchy_plugin_gate/`, started by the launcher
-`bin/omarchy-plugin-gate`. Development tools come from mise and uv:
+The gate is Python in `src/omdall/`, started by the launcher
+`bin/omdall`. Development tools come from mise and uv:
 
 ```sh
 mise install      # uv

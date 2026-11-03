@@ -28,7 +28,7 @@ has "$B/state/gate.log" "hook: rolled back" 'rollback logged'
 git -C "$B/root/demo" checkout -q -- manifest.json
 commit_upstream 'printf "// fine\n" >> Widget.qml' 'good pull'
 good=$(git -C "$B/upstream" rev-parse HEAD)
-OMARCHY_PLUGIN_GATE_ROOT=$B/nowhere OMARCHY_PLUGIN_GATE_STATE=$B/wrong-state \
+OMDALL_ROOT=$B/nowhere OMDALL_STATE=$B/wrong-state \
   bash -c "cd '$B/root/demo' && git pull -q --ff-only origin main" >/dev/null 2>&1
 eq 'clean pull kept' "$(git -C "$B/root/demo" rev-parse HEAD)" "$good"
 assert 'hook wrote a marker in its recorded state' test -f "$B/state/demo/reviewed/$good"

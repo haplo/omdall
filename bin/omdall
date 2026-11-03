@@ -1,16 +1,16 @@
 #!/usr/bin/env -S python3 -I
-# omarchy-plugin-gate — review Omarchy shell plugin updates before they land.
+# omdall — review Omarchy shell plugin updates before they land.
 #
-#   omarchy-plugin-gate add <git-url> [--dir NAME] [--no-enable]
-#   omarchy-plugin-gate check [-p NAME]
-#   omarchy-plugin-gate approve <name> [--sha SHA] [--reason TEXT] [--show] [-n]
-#   omarchy-plugin-gate update [-p NAME]
-#   omarchy-plugin-gate status [-p NAME]
-#   omarchy-plugin-gate doctor [-p NAME] [--fix]
+#   omdall add <git-url> [--dir NAME] [--no-enable]
+#   omdall check [-p NAME]
+#   omdall approve <name> [--sha SHA] [--reason TEXT] [--show] [-n]
+#   omdall update [-p NAME]
+#   omdall status [-p NAME]
+#   omdall doctor [-p NAME] [--fix]
 #
 # Setting options (--root, --state, --agent, --model, --notify, --timeout,
 # --max-patch) go before or after the command and beat the environment, which
-# beats ~/.config/omarchy-plugin-gate/config.toml.
+# beats ~/.config/omdall/config.toml.
 #
 # A launcher for the code in ../src, run by the system Python with the standard
 # library only. -I keeps PYTHONPATH, user site-packages and the working
@@ -19,13 +19,13 @@
 import sys
 
 if sys.version_info < (3, 14):  # noqa: UP036 - the point is a clear message on old Pythons
-    sys.exit("omarchy-plugin-gate: needs Python 3.14 or newer")
+    sys.exit("omdall: needs Python 3.14 or newer")
 
 from pathlib import Path
 
 SELF = Path(__file__).resolve()
 sys.path.insert(0, str(SELF.parent.parent / "src"))
 
-from omarchy_plugin_gate.cli import main  # noqa: E402
+from omdall.cli import main  # noqa: E402
 
 raise SystemExit(main(SELF))

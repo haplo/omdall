@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Selftest",
   "license": "MIT",
-  "description": "Fixture plugin for omarchy-plugin-gate tests.",
+  "description": "Fixture plugin for omdall tests.",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Widget.qml" },
   "barWidget": {

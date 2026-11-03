@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import __version__, cli, proc
-from omarchy_plugin_gate.commands import reviews, status
-from omarchy_plugin_gate.config import APPROVED_REF
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.output import EXIT_BUSY
+from omdall import __version__, cli, proc
+from omdall.commands import reviews, status
+from omdall.config import APPROVED_REF
+from omdall.context import Context
+from omdall.output import EXIT_BUSY
 from support import Upstream, git
 from test_state import hold_lock, release
 
-LAUNCHER = Path(__file__).parents[2] / "bin" / "omarchy-plugin-gate"
+LAUNCHER = Path(__file__).parents[2] / "bin" / "omdall"
 
 
 @pytest.fixture
@@ -87,7 +87,7 @@ def test_status_text_unchanged(
     status.run(ctx, "")
     out = capsys.readouterr().out
     assert "state     held back" in out
-    assert "next      omarchy-plugin-gate approve -p demo" in out
+    assert "next      omdall approve -p demo" in out
     assert "last review: REVIEW FAIL" in out
     assert f"patch: {ctx.state.review_dir('demo', held).patch}" in out
     assert "\x1b" not in out
@@ -138,7 +138,7 @@ def test_json_error_on_stdout(ctx: Context, capsys: pytest.CaptureFixture[str]) 
     assert data["schema"] == 1
     assert data["code"] == "error"
     assert "no plugin named 'missing'" in data["error"]
-    assert captured.err.startswith("omarchy-plugin-gate: no plugin named")
+    assert captured.err.startswith("omdall: no plugin named")
 
 
 def test_reviews_name_and_plugin_conflict(
@@ -169,7 +169,7 @@ def test_no_wait_exits_75(
     finally:
         release(holder)
     err = capsys.readouterr().err
-    assert "another omarchy-plugin-gate run is in progress" in err
+    assert "another omdall run is in progress" in err
     assert "waiting" not in err
 
 

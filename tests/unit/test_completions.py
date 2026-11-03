@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from omarchy_plugin_gate import cli
-from omarchy_plugin_gate.commands import complete
-from omarchy_plugin_gate.config import Config
-from omarchy_plugin_gate.context import Context
+from omdall import cli
+from omdall.commands import complete
+from omdall.config import Config
+from omdall.context import Context
 
-LAUNCHER = Path(__file__).parents[2] / "bin" / "omarchy-plugin-gate"
+LAUNCHER = Path(__file__).parents[2] / "bin" / "omdall"
 COMPLETIONS = Path(__file__).parents[2] / "completions"
-BASH = COMPLETIONS / "omarchy-plugin-gate.bash"
-ZSH = COMPLETIONS / "_omarchy-plugin-gate"
-FISH = COMPLETIONS / "omarchy-plugin-gate.fish"
+BASH = COMPLETIONS / "omdall.bash"
+ZSH = COMPLETIONS / "_omdall"
+FISH = COMPLETIONS / "omdall.fish"
 SHELL_FILES = (BASH, ZSH, FISH)
 
 # `add) flags+=(--dir --no-enable) ;;` in the bash and zsh scripts, including
@@ -118,7 +118,7 @@ def test_complete_answers_nothing(
 def test_complete_is_silent_when_the_config_is_broken(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    config = tmp_path / "omarchy-plugin-gate" / "config.toml"
+    config = tmp_path / "omdall" / "config.toml"
     config.parent.mkdir()
     config.write_text("modle = 'typo'\n")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))

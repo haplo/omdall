@@ -104,8 +104,8 @@ def run(ctx: Context, args: AddArgs) -> int:
     if clone_dir.exists():
         raise GateError(
             f"'{name}' already exists at {clone_dir} — review it with: "
-            f"omarchy-plugin-gate check -p {name}, install it with: "
-            f"omarchy-plugin-gate update -p {name}"
+            f"omdall check -p {name}, install it with: "
+            f"omdall update -p {name}"
         )
 
     ctx.cfg.root.mkdir(parents=True, exist_ok=True)
@@ -134,8 +134,7 @@ def run(ctx: Context, args: AddArgs) -> int:
 
     if _already_installed(plugin_id):
         raise GateError(
-            f"plugin id '{plugin_id}' is already installed — "
-            f"use: omarchy-plugin-gate check -p {name}"
+            f"plugin id '{plugin_id}' is already installed — use: omdall check -p {name}"
         )
 
     clone = ctx.clone(name)
@@ -153,8 +152,7 @@ def run(ctx: Context, args: AddArgs) -> int:
         indented(rd.verdict_lines()[1:], 2)
         info(f"patch: {rd.patch}")
         info(
-            f"after reading it, to install anyway: omarchy-plugin-gate approve {name} "
-            f"&& omarchy-plugin-gate update -p {name}"
+            f"after reading it, to install anyway: omdall approve {name} && omdall update -p {name}"
         )
         raise GateError(f"{plugin_id} was not installed")
 
@@ -170,7 +168,7 @@ def run(ctx: Context, args: AddArgs) -> int:
         notify(ctx, f"{plugin_id}: install failed", f"The clone is kept at {clone_dir}.")
         raise GateError(
             f"{plugin_id} was not installed; the clone is kept at {clone_dir} "
-            f"(retry with: omarchy-plugin-gate update -p {name})"
+            f"(retry with: omdall update -p {name})"
         )
 
     suffix = (

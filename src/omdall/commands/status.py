@@ -130,9 +130,9 @@ def show(r: PluginRecord) -> None:
     if r.cleared_file:
         info(f"findings  {r.cleared} cleared by the reviewer — {r.cleared_file}")
     if r.state == "held back":
-        info(f"next      omarchy-plugin-gate approve -p {r.name}   (or check -p {r.name} to retry)")
+        info(f"next      omdall approve -p {r.name}   (or check -p {r.name} to retry)")
     elif r.state == "approved, not installed":
-        info(f"next      omarchy-plugin-gate update -p {r.name}")
+        info(f"next      omdall update -p {r.name}")
 
     latest = r.latest_review
     if latest and latest.verdict.startswith("REVIEW FAIL"):
@@ -159,7 +159,7 @@ def run(ctx: Context, want: str, *, as_json: bool = False) -> int:
         )
         return 0
     if busy:
-        say("another omarchy-plugin-gate run is in progress; this may change when it finishes")
+        say("another omdall run is in progress; this may change when it finishes")
         say()
     for r in records:
         show(r)

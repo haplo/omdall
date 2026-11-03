@@ -1,19 +1,19 @@
-# bash completion for omarchy-plugin-gate.
+# bash completion for omdall.
 #
 # scripts/install.sh links this file into $XDG_DATA_HOME/bash-completion/
-# completions/omarchy-plugin-gate, where bash-completion looks for it on the
+# completions/omdall, where bash-completion looks for it on the
 # first Tab. It uses plain bash builtins, so sourcing it from ~/.bashrc also
 # works without bash-completion.
 #
-# Keep the commands and options in step with src/omarchy_plugin_gate/cli.py;
+# Keep the commands and options in step with src/omdall/cli.py;
 # tests/unit/test_completions.py fails when they drift apart.
 #
-# The helpers share `words`, `cword` and `settings` with _omarchy_plugin_gate,
+# The helpers share `words`, `cword` and `settings` with _omdall,
 # which declares them local.
 
 # Interactive bash splits --opt=value into --opt, = and value, because = is in
 # COMP_WORDBREAKS. Join them back so the rest sees the words argparse will.
-_omarchy_plugin_gate_words() {
+_omdall_words() {
   local i word joining=0
   words=()
   cword=0
@@ -34,7 +34,7 @@ _omarchy_plugin_gate_words() {
 
 # The --root and --state given on the line, so _complete looks where the command
 # will. A leading ~ is expanded as the shell will expand it.
-_omarchy_plugin_gate_settings() {
+_omdall_settings() {
   local i word value
   settings=()
   for ((i = 1; i < cword; i++)); do
@@ -57,7 +57,7 @@ _omarchy_plugin_gate_settings() {
   done
 }
 
-_omarchy_plugin_gate_plugins() { # <prefix>
+_omdall_plugins() { # <prefix>
   local -a names
   local name
   mapfile -t names < <("${words[0]}" "${settings[@]}" _complete plugins 2>/dev/null)
@@ -66,7 +66,7 @@ _omarchy_plugin_gate_plugins() { # <prefix>
   done
 }
 
-_omarchy_plugin_gate_held() { # <prefix> <plugin>
+_omdall_held() { # <prefix> <plugin>
   local -a shas
   local sha
   [[ -n $2 ]] || return 0
@@ -76,7 +76,7 @@ _omarchy_plugin_gate_held() { # <prefix> <plugin>
   done
 }
 
-_omarchy_plugin_gate_dirs() { # <prefix>
+_omdall_dirs() { # <prefix>
   local dir
   compopt -o filenames 2>/dev/null
   while IFS= read -r dir; do
@@ -86,7 +86,7 @@ _omarchy_plugin_gate_dirs() { # <prefix>
 
 # The plugin named on the line: -p NAME, --plugin NAME or --plugin=NAME, or the
 # positional name after `approve` or `reviews`.
-_omarchy_plugin_gate_plugin() {
+_omdall_plugin() {
   local i word
   for ((i = 1; i < cword; i++)); do
     word=${words[i]}
@@ -118,11 +118,11 @@ _omarchy_plugin_gate_plugin() {
   done
 }
 
-_omarchy_plugin_gate() {
+_omdall() {
   local cur prev cmd name flag i cword inline=0
   local -a words flags settings
   COMPREPLY=()
-  _omarchy_plugin_gate_words
+  _omdall_words
   cur=${words[cword]-}
   prev=
   ((cword > 0)) && prev=${words[cword - 1]}
@@ -142,16 +142,16 @@ _omarchy_plugin_gate() {
       ;;
     esac
   done
-  name=$(_omarchy_plugin_gate_plugin)
-  _omarchy_plugin_gate_settings
+  name=$(_omdall_plugin)
+  _omdall_settings
 
   case $prev in
   -p | --plugin)
-    _omarchy_plugin_gate_plugins "$cur"
+    _omdall_plugins "$cur"
     return 0
     ;;
   --sha)
-    _omarchy_plugin_gate_held "$cur" "$name"
+    _omdall_held "$cur" "$name"
     return 0
     ;;
   --notify)
@@ -159,7 +159,7 @@ _omarchy_plugin_gate() {
     return 0
     ;;
   --root | --state)
-    _omarchy_plugin_gate_dirs "$cur"
+    _omdall_dirs "$cur"
     return 0
     ;;
   --agent | --model | --timeout | --max-patch | --reason | --dir)
@@ -188,9 +188,9 @@ _omarchy_plugin_gate() {
   if [[ -z $cmd ]]; then
     COMPREPLY=($(compgen -W "add check approve update status reviews doctor" -- "$cur"))
   elif [[ ($cmd == approve || $cmd == reviews) && -z $name ]]; then
-    _omarchy_plugin_gate_plugins "$cur"
+    _omdall_plugins "$cur"
   fi
   return 0
 }
 
-complete -F _omarchy_plugin_gate omarchy-plugin-gate
+complete -F _omdall omdall

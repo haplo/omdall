@@ -322,7 +322,7 @@ def validate_tree(repo: Repo, rev: str) -> str | None:
     """Validate the candidate tree itself, not whatever the clone has checked out."""
     if proc.which("omarchy") is None:
         return "omarchy is not on PATH, so the candidate could not be validated — needs a human"
-    with tempfile.TemporaryDirectory(prefix="omarchy-plugin-gate.") as tmp:
+    with tempfile.TemporaryDirectory(prefix="omdall.") as tmp:
         try:
             with tarfile.open(fileobj=io.BytesIO(repo.archive(rev)), mode="r:") as tar:
                 tar.extractall(tmp, filter="data")

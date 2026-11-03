@@ -7,9 +7,9 @@ import time
 
 import pytest
 
-from omarchy_plugin_gate.context import Context
-from omarchy_plugin_gate.output import EXIT_BUSY, Busy, GateError
-from omarchy_plugin_gate.state import State, one_line, parse_waiver, read_lines
+from omdall.context import Context
+from omdall.output import EXIT_BUSY, Busy, GateError
+from omdall.state import State, one_line, parse_waiver, read_lines
 
 SHA = "a" * 40
 OTHER = "b" * 40
@@ -212,7 +212,7 @@ def release(holder: subprocess.Popen[str]) -> None:
 
 def test_lock_is_exclusive(ctx: Context) -> None:
     holder = hold_lock(ctx)
-    busy = pytest.raises(GateError, match="another omarchy-plugin-gate run is in progress")
+    busy = pytest.raises(GateError, match="another omdall run is in progress")
     try:
         with busy, ctx.state.lock(wait=False):
             pass

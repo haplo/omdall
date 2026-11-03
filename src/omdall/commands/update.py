@@ -43,7 +43,7 @@ def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
     clone = ctx.clone(name)
     approved = clone.rev(APPROVED_REF)
     if not approved:
-        warn(f"{name}: nothing approved yet (run: omarchy-plugin-gate check -p {name})")
+        warn(f"{name}: nothing approved yet (run: omdall check -p {name})")
         return False
     if not ctx.state.has_approval(name, approved):
         warn(f"{name}: approved commit {approved} has no review or waiver record; refusing")
@@ -53,7 +53,7 @@ def update_one(ctx: Context, name: str, *, first_install: bool) -> bool:
         if not first_install:
             info(
                 f"{name}: approved {approved[:12]}, not installed "
-                f"(install with: omarchy-plugin-gate update -p {name})"
+                f"(install with: omdall update -p {name})"
             )
             return False
         say(f"{name}: installing {approved[:12]} (first install)")

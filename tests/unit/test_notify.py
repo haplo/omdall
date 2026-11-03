@@ -1,6 +1,6 @@
 import pytest
 
-from omarchy_plugin_gate.notify import CheckSummary, check_notification
+from omdall.notify import CheckSummary, check_notification
 
 
 def summary(**kw: list[str]) -> CheckSummary:
@@ -14,7 +14,7 @@ def test_quiet_when_nothing_happened() -> None:
 def test_single_ready() -> None:
     assert check_notification(summary(ready=["demo"]), "all") == (
         "demo: update ready",
-        "Reviewed and approved. Run omarchy-plugin-gate update.",
+        "Reviewed and approved. Run omdall update.",
     )
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from omarchy_plugin_gate import output
+from omdall import output
 
 
 def test_safe_text_keeps_newlines_and_tabs() -> None:

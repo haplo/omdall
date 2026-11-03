@@ -1,12 +1,12 @@
 [project]
-name = "omarchy-plugin-gate"
+name = "omdall"
 version = "0.6.0"
 description = "Review Omarchy shell plugin updates before they land"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.14"
 # The gate runs on the system Python with the standard library only. Keep it
-# that way: bin/omarchy-plugin-gate is a launcher, not an installed package.
+# that way: bin/omdall is a launcher, not an installed package.
 dependencies = []
 
 [dependency-groups]
