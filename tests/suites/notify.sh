@@ -8,6 +8,7 @@ printf '\n== notifications ==\n'
 commit_upstream 'printf "// notify\n" >> Widget.qml' notify
 "$GATE" check >/dev/null 2>&1
 has "$NOTIFY_LOG" '-u normal -t 30000' 'normal urgency, 30s'
+has "$NOTIFY_LOG" '-g 󰕥' 'the shield icon of the bar plugin'
 has "$NOTIFY_LOG" 'update ready' 'headline mentions the pending update'
 eq 'notification id remembered' "$(cat "$B/state/notify.id" 2>/dev/null)" 4242
 "$GATE" update >/dev/null 2>&1

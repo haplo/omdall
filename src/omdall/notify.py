@@ -7,7 +7,7 @@ from .context import Context
 from .state import write_atomic
 
 APP = "omdall"
-ICON = "󰐕"
+ICON = "󰕥"
 
 # The front-end shell plugin's id, which is also its IPC target. With
 # notify-action = "panel", a click on a notification opens its panel.

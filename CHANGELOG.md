@@ -51,6 +51,8 @@ uses [Semantic Versioning](https://semver.org/).
 - On a terminal, `approve --show` pages the escaped patch through `less`, with
   `LESSSECURE` set and your `LESS` options replaced (never `-R`), before the
   verdict and the reason prompt. Elsewhere it prints the patch as before.
+- Notifications carry the shield of the omdall bar plugin (`󰕥`) instead of a
+  plus.
 
 ## 0.7.0 - 2026-11=03
 
