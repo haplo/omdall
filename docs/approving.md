@@ -5,7 +5,7 @@ it is fine, `approve` lets that one commit through:
 
 ```sh
 omdall approve my-plugin                     # show the evidence, ask why
-omdall approve my-plugin --show              # print the diff first
+omdall approve my-plugin --show              # read the diff first
 omdall approve my-plugin --reason "checked"  # no prompt
 omdall approve my-plugin --dry-run           # show what would happen
 omdall update -p my-plugin
@@ -16,8 +16,13 @@ the structural findings and the patch path, then asks for a reason. The reason
 can be empty. Use `--reason` when stdin is not a terminal. A commit that was
 never reviewed needs `--show` or `--reason`.
 
-`--show` prints the diff from the current `gate-approved` to the candidate,
-which is exactly what the approval lets through. If this diff differs from the
+`--show` shows the diff from the current `gate-approved` to the candidate,
+which is exactly what the approval lets through. In a terminal it opens in
+`less` first, before the verdict and the question. It is locked down so the
+diff can't run anything or send raw control characters to your terminal.
+Elsewhere, or without `less`, the diff is printed after the evidence. Control
+characters are escaped either way. Ctrl-C at any point exits without
+approving. If this diff differs from the
 one that was reviewed (because `gate-approved` has moved since, for example),
 `approve` warns you.
 

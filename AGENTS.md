@@ -13,7 +13,7 @@ for paths, state layout and the tripwire; `docs/review.md` for the checks;
 - `bin/omdall` — launcher run by the system `python3 -I`. It puts
   `src/` on the import path and calls `cli.main`. Hooks and the systemd unit
   call this exact file, so its path is part of the installed wiring.
-- `src/omdall/` — the CLI. Start at `cli.py` (subcommands `add`,
+- `src/omdall/` — the CLI. Start at `cli.py` (subcommands `add`, `adopt`,
   `check`, `approve`, `update`, `status`, `reviews`, `doctor`, and the hidden
   `_post-merge` hook entry point), then:
   - `config.py` — every setting, read once from the options, the environment
@@ -27,6 +27,11 @@ for paths, state layout and the tripwire; `docs/review.md` for the checks;
     reviewer's output into a verdict.
   - `review.py` — one candidate end to end; the fail-closed boundary.
   - `state.py` — markers, waivers, held, evidence directories, log.
+  - `activity.py` — `activity.json`, the change signal and live progress for
+    front ends. Display data only: nothing in the gate may read it to decide
+    anything, and a failed write never fails a run.
+  - `results.py` — the per-plugin result records (`PluginResult`,
+    `DoctorResult`, `Report`) behind the action commands' `--json`.
   - `install.py` — first install of an approved commit (`omarchy plugin add`
     from the clone, then enable), shared by `add` and `update -p`.
   - `hooks.py`, `notify.py`, `plugins.py`, `context.py`, `commands/*.py`.
@@ -198,10 +203,14 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
   run did not see. A merge or checkout the gate runs itself passes
   `no_hooks=True` as well as `no_attributes=True`.
 - Commands that write state run under `State.lock()`, taken once in
-  `cli.dispatch` (`add`, `approve` without `--dry-run`, `check`, `update`,
-  `doctor --fix`, `_post-merge`). The lock is not reentrant, even within one
-  process: never take it again below `dispatch`, and never let a git command
-  the gate runs under it start a hook (the tripwire would wait for it).
+  `cli.dispatch` through `cli._locked` (`add`, `adopt`, `approve` without
+  `--dry-run`, `check`, `update`, `doctor --fix`, `_post-merge`), which also
+  writes the start and end of the run to `activity.json`. The lock is not
+  reentrant, even within one process: never take it again below `dispatch`,
+  and never let a git command the gate runs under it start a hook (the
+  tripwire would wait for it). Commands report their phase with
+  `ctx.progress(phase, plugin, index, total)`; the phases are a closed set
+  (`activity.PHASES`), documented in `docs/scripting.md`.
 - Anything from a plugin (paths, manifest values, reviewer text) that lands in
   a line-oriented file, the log or the prompt goes through `output.printable`
   or `state.one_line` first, so it cannot forge extra lines.
@@ -210,11 +219,18 @@ Unit tests must never reach a real `opencode` or `omarchy`: put a stub first on
 - User-facing output goes through `output.say`, `info`, `ok`, `bad`, `warn` and
   `indented`; failures raise `GateError`, which prints
   `omdall: <message>` to stderr and exits with its `exit_code`
-  (1; `Busy`, raised by `State.lock(wait=False)`, is 75).
-- `status --json` and `reviews --json` are the public interface for other
-  programs (a front end, scripts); the state files are not. Their records
-  (`PluginRecord`, `ReviewRecord`) also drive the text output, so the two
-  cannot disagree. JSON goes through `output.emit_json`, which adds
+  (1; `Busy`, raised by `State.lock(wait=False)`, is 75). Raise the subclass
+  whose `code` names the failure (`NotFound`, `RefusedUrl`, `NameTaken`, …);
+  `--json` reports that `code`, and callers rely on it rather than on the
+  message. A new code is documented in `docs/scripting.md`.
+- `--json` (`status`, `reviews`, and the action commands `add`, `adopt`,
+  `check`, `update`, `doctor`) and `activity.json` are the public interface
+  for other programs (a front end, scripts); the other state files are not.
+  The records (`PluginRecord`, `ReviewRecord`, `PluginResult`) also drive the
+  text output, so the two cannot disagree. Action commands return a `Report`;
+  with `--json`, `dispatch` sends everything else they print to stderr.
+  `outcome` values and `status --json` `features` are closed sets: add to them
+  only together with the docs. JSON goes through `output.emit_json`, which adds
   `"schema"`; only ever add fields, and bump `JSON_SCHEMA` for a removal or a
   change of meaning. With `--json` nothing else may reach stdout.
 - Shell (`scripts/`, `tests/`, the hook text) stays bash with

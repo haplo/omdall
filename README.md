@@ -39,6 +39,7 @@ uninstalling.
 
 ```sh
 omdall add https://github.com/ninepointlabs/omasync  # clone, review, install
+omdall adopt <id>         # guard a plugin installed with omarchy plugin add
 omdall check              # review upstream changes (the daily timer does this)
 omdall update             # install approved changes
 omdall status             # installed, approved, upstream, held back
@@ -79,12 +80,14 @@ counts as a failure. See [docs/review.md](docs/review.md).
 ## Documentation
 
 - [Installing](docs/install.md): setup, shell completions, uninstalling
-- [Usage](docs/usage.md): each command, adopting plugins you already have
+- [Usage](docs/usage.md): each command, including adopting plugins you
+  already have
 - [Approving a failed review](docs/approving.md)
 - [How it works](docs/how-it-works.md): layout, evidence, locking, tripwire
 - [The review](docs/review.md): structural checks and the model reviewer
 - [Configuration](docs/configuration.md): every setting
-- [Scripting](docs/scripting.md): JSON output and exit status
+- [Scripting](docs/scripting.md): JSON output, activity.json, front ends and
+  exit status
 - [Development](docs/development.md): tools and tests
 
 ## License

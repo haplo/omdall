@@ -38,6 +38,7 @@ reviews/<short-sha>/cleared       findings the reviewer cleared, and why
 reviewed/<sha>                    approval from a passed review
 waived/<sha>                      approval by hand (see approving.md)
 held                              the last commit held back, and why
+adopted                           adopt: date, user, previous origin
 ```
 
 All evidence files are written before a decision is made, whatever the
@@ -45,14 +46,18 @@ outcome.
 
 ## Locking
 
-`add`, `approve`, `check`, `update`, `doctor --fix` and the tripwire take a
-lock (`gate.lock` in the state directory), so they never write at the same
-time. A second run prints `waiting for another run to finish…` and waits. With
-`--no-wait` it exits with status 75 instead, without doing anything. `status`,
-`reviews`, `doctor` and `approve --dry-run` never wait.
+`add`, `adopt`, `approve`, `check`, `update`, `doctor --fix` and the tripwire
+take a lock (`gate.lock` in the state directory), so they never write at the
+same time. A second run prints `waiting for another run to finish…` and
+waits. With `--no-wait` it exits with status 75 instead, without doing
+anything. `status`, `reviews`, `doctor` and `approve --dry-run` never wait.
 
 The daily check and the tripwire always wait, so a busy lock never makes them
 skip a review.
+
+Each run that holds the lock writes what it is doing to `activity.json` in
+the state directory, so a front end can show progress whoever started the
+run. See [Scripting](scripting.md#activityjson).
 
 ## Tripwire
 

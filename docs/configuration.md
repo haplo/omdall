@@ -39,6 +39,7 @@ the same file.
 | `--agent NAME` | `OMDALL_AGENT` | `agent` | `omdall-reviewer` | OpenCode agent, from `~/.config/opencode/agents/<name>.md` |
 | `--model ID` | `OMDALL_MODEL` | `model` | OpenCode's default | reviewer model, e.g. `venice/claude-opus-4-7` |
 | `--notify POLICY` | `OMDALL_NOTIFY` | `notify` | `all` | `all`, `ready` or `none` |
+| `--notify-action ACTION` | `OMDALL_NOTIFY_ACTION` | `notify-action` | `terminal` | what a click on a notification opens: `terminal` or `panel` |
 | `--timeout SECONDS` | `OMDALL_TIMEOUT` | `timeout` | `420` | reviewer timeout |
 | `--max-patch BYTES` | `OMDALL_MAX_PATCH` | `max-patch` | `2097152` | largest diff sent for review |
 
@@ -47,3 +48,13 @@ model, lower it to about 3 bytes per token, minus some headroom.
 
 Tripwire hooks remember the root and state they were installed with. See
 [How it works](how-it-works.md#tripwire).
+
+## Notifications
+
+With `notify-action = "terminal"`, a click on a notification runs
+`omdall status` in a floating terminal. With `panel`, it opens the panel of
+the omdall shell plugin instead, by running
+`omarchy-shell net.fidelramos.omdall open`. `net.fidelramos.omdall` is that
+plugin's id and IPC target. omdall doesn't check that the plugin is
+installed, so set `panel` only once it is. Without `omarchy-shell` on `PATH`,
+the click opens the terminal.
