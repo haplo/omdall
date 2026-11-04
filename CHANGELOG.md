@@ -4,7 +4,7 @@ All notable changes to omdall. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.8.0 - 2026-11-04
 
 ### Added
 
@@ -54,7 +54,7 @@ uses [Semantic Versioning](https://semver.org/).
 - Notifications carry the shield of the omdall bar plugin (`󰕥`) instead of a
   plus.
 
-## 0.7.0 - 2026-11=03
+## 0.7.0 - 2026-11-03
 
 ### Changed
 
